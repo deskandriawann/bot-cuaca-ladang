@@ -8,7 +8,7 @@ Bot mengirim informasi cuaca ke grup WhatsApp Kelompok Tani Nawungan 2.
 | Fitur | Waktu | Sumber |
 | --- | --- | --- |
 | Ringkasan pagi: cuaca pagi/siang/sore, hujan, petir, angin, suhu, jam aman ke ladang | Setiap hari pukul 05.00 WIB | BMKG |
-| Pemberitahuan perubahan mendadak (hujan lebat pasti, petir, angin kencang baru) dan pengingat menjelang hujan lebat | Dicek tiap jam 06.00-18.00, paling banyak 3 kali sehari | BMKG, peluang hujan Open-Meteo |
+| Pemberitahuan perubahan mendadak (hujan lebat pasti, petir, angin kencang baru) dan pengingat menjelang hujan lebat | Dicek tiap jam 06.00-18.00, paling banyak 3 kali sehari | BMKG, peluang hujan gabungan 5 model cuaca dunia |
 | Cek cuaca hari ke-1 sampai ke-3, rincian per 3 jam | Saat dipanggil | BMKG |
 | Cek cuaca hari ke-4 sampai ke-10, gambaran singkat | Saat dipanggil | Open-Meteo |
 | Halaman pengelola: daftarkan nomor, pilih grup, status, pesan uji | Kapan saja | - |
@@ -136,6 +136,7 @@ Bila tetap memakai cloud, pilih region terdekat (misalnya Singapura) saat mendaf
    git clone https://github.com/<akun>/<repo>.git ~/bot-cuaca
    cd ~/bot-cuaca && npm ci --omit=dev
    cp .env.example .env && nano .env   # isi ADMIN_PASSWORD
+   chmod 600 .env                      # hanya pemilik yang bisa membaca
    ```
    Memperbarui kode nanti: `git pull && npm ci --omit=dev && sudo systemctl restart bot-cuaca`. Setiap restart berarti sambung ulang ke WhatsApp, jadi perbarui sekaligus, bukan berkali-kali sehari.
 4. Jalankan sebagai layanan:
@@ -153,6 +154,14 @@ Bila tetap memakai cloud, pilih region terdekat (misalnya Singapura) saat mendaf
 6. Disarankan: pasang HTTPS (misalnya Caddy dengan domain gratis) agar kata sandi tidak terkirim tanpa enkripsi, lalu isi `ADMIN_HOST=127.0.0.1` dan tutup port 3000 dari luar.
 
 Data penting ada di folder `data/` (sesi WhatsApp dan pengaturan grup). Jangan dibagikan. Saat pindah komputer, matikan bot di tempat lama dulu; sesi yang sama tidak boleh berjalan di dua tempat.
+
+### Kata sandi halaman pengelola
+
+Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter. Setelah 5 kali salah, login dari alamat yang sama dikunci 15 menit.
+
+- Pakai huruf, angka, dan tanda `-`, misalnya beberapa kata acak ditambah angka. Tanda `#` memotong kata sandi tanpa peringatan (`abc#123` terbaca `abc`); bila perlu `#`, apit dengan tanda kutip.
+- Mengganti: ubah `ADMIN_PASSWORD` dengan `nano ~/bot-cuaca/.env`, lalu `sudo systemctl restart bot-cuaca`.
+- Browser yang sudah masuk tetap masuk sampai 30 hari walau kata sandi diganti. Untuk mengeluarkan semuanya (misalnya saat serah terima pengurus), hapus `data/login-sessions.json` sebelum restart.
 
 ## Catatan teknis
 

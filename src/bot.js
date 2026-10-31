@@ -242,7 +242,7 @@ export async function sendMorning({ force = false } = {}) {
  * Membandingkan data terbaru dengan yang sudah diumumkan. Kirim bila ada bahaya baru, atau bila hujan lebat
  * yang pasti akan segera turun. Paling banyak satu pesan per pemeriksaan.
  */
-export async function checkChanges() {
+async function checkChanges() {
   const state = getState();
   const now = nowWib();
   if (!state.groupJid || state.morningSentOn !== now.date || linkPhase().phase !== 'normal') return;
@@ -284,7 +284,7 @@ export function stableJitter(key, max) {
 let lastCheckHour = null;
 
 /** Dipanggil tiap 30 detik. Ringkasan pagi tetap dikirim bila server baru menyala sebelum pukul 09.00. */
-export async function tick() {
+async function tick() {
   if (!isConnected() || linkPhase().phase === 'tenang') return;
   const now = nowWib();
   const { morningSentOn, groupJid } = getState();

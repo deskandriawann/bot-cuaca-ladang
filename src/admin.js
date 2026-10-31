@@ -868,7 +868,6 @@ async function route(req, res) {
   if (method === 'GET' && url.pathname === '/kirim') {
     return send(res, 200, await manualPage(url.searchParams.get('jenis'), url.searchParams.get('pesan')));
   }
-  if (method === 'GET' && url.pathname === '/pratinjau') return redirect(res, '/kirim');
 
   if (method === 'POST') {
     const form = await readForm(req);

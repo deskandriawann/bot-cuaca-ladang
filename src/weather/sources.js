@@ -91,7 +91,7 @@ export function fetchEnsemble({ maxAgeMs = 60 * 60 * 1000 } = {}) {
 }
 
 /** { 'YYYY-MM-DD': { jam: [mm per anggota] } }; urutan anggota sama di setiap jam, null bila tidak ada data. */
-export function parseEnsemble(json) {
+function parseEnsemble(json) {
   const h = json?.hourly;
   if (!h?.time) throw new Error('Format data ensembel tidak dikenali');
   const members = Object.keys(h).filter((key) => /^precipitation(_member\d+)?$/.test(key));

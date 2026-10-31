@@ -21,10 +21,10 @@ export function condition(slot) {
 }
 
 // Waktu kerja di ladang 06.00-18.00. Tiap slot BMKG mewakili 3 jam sejak jamnya (08 = 08.00-11.00).
-// Jam slot BMKG bisa bergeser (pernah 06, 09, 12, 15; Oktober 2026 menjadi 05, 08, 11, 14, 17),
+// Jam slot BMKG sering bergeser (pernah 06, 09, 12, 15; 05, 08, 11, 14, 17; dan 07, 10, 13, 16),
 // jadi slot dihitung jam kerja bila waktunya bersinggungan dengan 06.00-18.00, bukan dari jam tertentu.
-export const WORK_START = 6;
-export const WORK_END = 18;
+const WORK_START = 6;
+const WORK_END = 18;
 export const SLOT_HOURS = 3;
 export const isFieldSlot = (slot) => slot.hour < WORK_END && slot.hour + SLOT_HOURS > WORK_START;
 
@@ -38,7 +38,7 @@ export const PERIODS = [
 ];
 
 // Jenis bahaya yang memicu pemberitahuan perubahan mendadak (hujan lebat hanya bila pasti, lihat hazardsOf)
-export const ALERT_TYPES = new Set(['petir', 'hujan_lebat', 'angin']);
+const ALERT_TYPES = new Set(['petir', 'hujan_lebat', 'angin']);
 
 const HAZARD_LABEL = {
   petir: 'Hujan petir',
@@ -52,10 +52,10 @@ export const isThunder = (slot) => condition(slot) === 'petir';
 
 // Hujan yang terasa: minimal 1 mm dalam 3 jam slot. Ambang 0,1 mm membuat peluang terlalu tinggi, karena
 // model global cenderung memprakirakan gerimis tipis terlalu sering di daerah tropis.
-export const RAIN_MM = 1;
+const RAIN_MM = 1;
 
 /** Persentase anggota ensembel satu pusat cuaca yang hujannya minimal RAIN_MM dalam 3 jam slot; null bila data tidak lengkap. */
-export function ensembleChance(hours, slot) {
+function ensembleChance(hours, slot) {
   const perHour = Array.from({ length: SLOT_HOURS }, (_, i) => hours?.[slot.date]?.[slot.hour + i]);
   if (perHour.some((values) => !values)) return null;
   const totals = perHour[0]
@@ -100,7 +100,7 @@ export const isRainWarning = (slot) => ['hujan_sedang', 'hujan_lebat', 'petir'].
 export const isHeavyRain = (slot) => ['hujan_lebat', 'petir'].includes(condition(slot)) && isSureRain(slot);
 
 /** Makin besar makin buruk; dipakai untuk memilih kondisi terburuk dalam satu rentang waktu. */
-export function severity(slot) {
+function severity(slot) {
   return CONDITIONS.find(([name]) => name === condition(slot))?.[2] ?? 0;
 }
 
@@ -139,7 +139,7 @@ export function safeWindows(slots) {
 
 // Menyemprot pestisida sebaiknya saat angin tenang (umumnya di bawah sekitar 15 km/jam) dan tidak
 // disusul hujan, agar semprotan tidak terbawa angin atau tercuci hujan.
-export const SPRAY_MAX_WIND_KMH = 15;
+const SPRAY_MAX_WIND_KMH = 15;
 
 /**
  * Rentang jam pertama yang baik untuk menyemprot, misalnya [6, 12]: slot jam kerja tanpa hujan dan bahaya,

@@ -6,7 +6,7 @@ import { config } from './config.js';
 
 const lockFile = () => path.join(config.dataDir, 'bot.lock');
 
-export function isProcessAlive(pid) {
+function isProcessAlive(pid) {
   try {
     process.kill(pid, 0);
     return true;
