@@ -7,6 +7,9 @@ import { handleGroupMessage, startScheduler } from './bot.js';
 
 console.log(`Bot cuaca ${config.placeName} (panggilan: "halo ${config.botName}", mode ${config.waMode})`);
 
+// Berkas baru (sesi WhatsApp, state, sesi masuk) hanya bisa dibaca pemiliknya. Tidak berpengaruh di Windows.
+process.umask(0o077);
+
 // Satu bot per folder data: dua bot dengan sesi yang sama saling bentrok di WhatsApp
 try {
   acquireLock();

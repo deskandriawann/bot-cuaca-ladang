@@ -14,6 +14,7 @@ const mainEnv = fs.existsSync(envFile) ? parseEnv(fs.readFileSync(envFile, 'utf8
 
 process.env.WA_MODE = 'manual';
 process.env.ADMIN_PORT = process.env.DEV_PORT || '3001';
+process.env.ADMIN_HOST = process.env.DEV_HOST || '127.0.0.1'; // halaman develop hanya untuk komputer ini
 process.env.DATA_DIR = process.env.DEV_DATA_DIR || 'data-dev';
 process.env.MAIN_BOT_URL ||= `http://127.0.0.1:${mainEnv.ADMIN_PORT || '3000'}`;
 process.env.MAIN_BOT_TOKEN_FILE ||= path.resolve(root, mainEnv.DATA_DIR || 'data', 'api-token');

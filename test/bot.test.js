@@ -1,6 +1,7 @@
-import './setup.js'; // harus paling awal: pengaturan bawaan dan folder data sementara
+import { ADMIN_PASSWORD, OLD_SID } from './setup.js'; // harus paling awal: pengaturan bawaan dan folder data sementara
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,7 +10,8 @@ import { safeWindows, alertKeys, hazardsOf, withRainChance } from '../src/weathe
 import { morningMessage, updateMessage, rainSoonMessage } from '../src/messages.js';
 import { parseCall } from '../src/commands.js';
 import { answer } from '../src/bot.js';
-import { normalizePhone } from '../src/admin.js';
+import { normalizePhone, startAdmin } from '../src/admin.js';
+import { getState } from '../src/store.js';
 import { nowWib } from '../src/time.js';
 
 const bmkg = parseBmkg(JSON.parse(fs.readFileSync(new URL('./fixtures/bmkg.json', import.meta.url))));
@@ -325,6 +327,62 @@ test('saran: waktu menyemprot hanya saat tidak hujan, angin tenang, dan tidak di
   assert.deepEqual(sprayWindow([slot(6, 'Cerah', 5), slot(9, 'Cerah', 20), slot(12, 'Hujan Ringan'), slot(15, 'Cerah')]), [6, 9]);
   assert.deepEqual(sprayWindow([slot(6, 'Cerah', 5), slot(9, 'Hujan Ringan'), slot(12, 'Cerah', 5), slot(15, 'Cerah', 5), slot(18, 'Cerah')]), [12, 18]);
   assert.equal(sprayWindow([slot(6, 'Hujan Sedang'), slot(9, 'Hujan Petir'), slot(12, 'Hujan Ringan'), slot(15, 'Hujan Ringan')]), null);
+});
+
+test('halaman pengelola: header keamanan, Origin, cookie Secure, pesan bertanda tangan, kunci masuk', async () => {
+  const server = startAdmin();
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const form = (pathname, body, headers = {}) => fetch(base + pathname, {
+    method: 'POST', redirect: 'manual', body: new URLSearchParams(body),
+    headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
+  });
+  const login = (password, ip) => form('/masuk', { password }, { 'x-forwarded-for': ip });
+  try {
+    const first = await fetch(`${base}/`);
+    assert.match(first.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+    assert.equal(first.headers.get('x-frame-options'), 'DENY');
+    assert.equal(first.headers.get('strict-transport-security'), null); // HTTP biasa
+
+    // Sesi dari kata sandi lama gugur
+    assert.match(await (await fetch(`${base}/`, { headers: { cookie: `sid=${OLD_SID}` } })).text(), /Kata sandi pengelola/);
+
+    // Formulir dari situs lain ditolak, walau kata sandinya benar
+    assert.equal((await form('/masuk', { password: ADMIN_PASSWORD }, { origin: 'https://jahat.example' })).status, 403);
+
+    // Lewat reverse proxy HTTPS: cookie hanya dikirim lewat HTTPS
+    const ok = await form('/masuk', { password: ADMIN_PASSWORD }, { 'x-forwarded-proto': 'https', 'x-forwarded-for': '203.0.113.9' });
+    assert.equal(ok.status, 303);
+    assert.match(ok.headers.get('set-cookie'), /HttpOnly; SameSite=Strict; .*Secure/);
+    assert.ok(ok.headers.get('strict-transport-security'));
+    const cookie = ok.headers.get('set-cookie').split(';')[0];
+
+    // Pesan di alamat hanya tampil bila ditandatangani bot sendiri
+    const fake = await (await fetch(`${base}/?pesan=Hubungi%20nomor%20ini`, { headers: { cookie } })).text();
+    assert.match(fake, /Keluar/); // sudah masuk: halaman utama, bukan halaman masuk
+    assert.doesNotMatch(fake, /Hubungi nomor ini/);
+    const back = await form('/grup', { jid: 'tidak-ada@g.us' }, { cookie });
+    const shown = await (await fetch(base + back.headers.get('location'), { headers: { cookie } })).text();
+    assert.match(shown, /Gagal: grup tidak ditemukan/);
+
+    // API mode develop: token benar tetap ditolak bila datang lewat reverse proxy
+    const { config } = await import('../src/config.js');
+    const token = fs.readFileSync(path.join(config.dataDir, 'api-token'), 'utf8');
+    assert.equal((await fetch(`${base}/api/status`, { headers: { 'x-bot-token': token } })).status, 200);
+    assert.equal((await fetch(`${base}/api/status`, { headers: { 'x-bot-token': token, 'x-forwarded-for': '203.0.113.9' } })).status, 403);
+
+    // 5 kali salah dari satu alamat: alamat itu dikunci, kata sandi benar pun ditolak
+    await Promise.all(Array.from({ length: 5 }, () => login('salah', '198.51.100.7')));
+    assert.equal((await login(ADMIN_PASSWORD, '198.51.100.7')).status, 429);
+    assert.equal((await login(ADMIN_PASSWORD, '198.51.100.8')).status, 303);
+
+    // 30 kali salah dari banyak alamat: semua dikunci dan dicatat
+    await Promise.all(Array.from({ length: 30 }, (_, i) => login('salah', `192.0.2.${i + 1}`)));
+    assert.equal((await login(ADMIN_PASSWORD, '192.0.2.200')).status, 429);
+    assert.equal(getState().log[0].kind, 'keamanan');
+  } finally {
+    server.close();
+  }
 });
 
 test('jam aman: ✅ sepanjang hari, ⚠️ sebagian, ⛔ tidak ada', () => {

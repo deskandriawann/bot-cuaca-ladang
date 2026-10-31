@@ -6,6 +6,10 @@ on:
   push:
   pull_request:
 
+# Hanya membaca kode; tidak perlu izin menulis ke repo
+permissions:
+  contents: read
+
 jobs:
   cek:
     runs-on: ubuntu-latest

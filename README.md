@@ -123,9 +123,9 @@ Jangan pakai `node --watch` untuk `npm start`: setiap muat ulang berarti sambung
 
 Komunitas pengembang menganggap IP server cloud lebih dicurigai WhatsApp daripada koneksi rumah (tidak pernah dinyatakan resmi).
 Bila nomor diblokir saat bot berjalan di cloud, pindahkan bot ke laptop, mini PC, atau HP Android lama di posko atau rumah pengurus.
-Bila tetap memakai cloud, pilih region terdekat (misalnya Singapura) saat mendaftar.
+Bila tetap memakai cloud, pilih region terdekat (misalnya Indonesia North (Batam) atau Singapura) saat mendaftar.
 
-1. Buat instance Ubuntu (shape Always Free), lalu masuk lewat SSH.
+1. Buat instance Canonical Ubuntu 24.04 (shape Always Free), lalu masuk lewat SSH.
 2. Pasang Node.js 22:
    ```bash
    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -135,7 +135,7 @@ Bila tetap memakai cloud, pilih region terdekat (misalnya Singapura) saat mendaf
    ```bash
    git clone https://github.com/<akun>/<repo>.git ~/bot-cuaca
    cd ~/bot-cuaca && npm ci --omit=dev
-   cp .env.example .env && nano .env   # isi ADMIN_PASSWORD
+   cp .env.example .env && nano .env   # isi ADMIN_PASSWORD; ADMIN_HOST tetap 127.0.0.1
    chmod 600 .env                      # hanya pemilik yang bisa membaca
    ```
    Memperbarui kode nanti: `git pull && npm ci --omit=dev && sudo systemctl restart bot-cuaca`. Setiap restart berarti sambung ulang ke WhatsApp, jadi perbarui sekaligus, bukan berkali-kali sehari.
@@ -146,27 +146,42 @@ Bila tetap memakai cloud, pilih region terdekat (misalnya Singapura) saat mendaf
    journalctl -u bot-cuaca -f          # melihat log
    ```
    Layanan menunggu 60 detik sebelum menyala ulang dan berhenti mencoba setelah 5 kali gagal dalam 1 jam, agar tidak menyambung ke WhatsApp berulang-ulang. Setelah memperbaiki penyebabnya: `sudo systemctl reset-failed bot-cuaca && sudo systemctl start bot-cuaca`.
-5. Buka port halaman pengelola: tambahkan aturan masuk TCP 3000 di Security List VCN, lalu di server:
-   ```bash
-   sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT
-   sudo netfilter-persistent save
-   ```
-6. Disarankan: pasang HTTPS (misalnya Caddy dengan domain gratis) agar kata sandi tidak terkirim tanpa enkripsi, lalu isi `ADMIN_HOST=127.0.0.1` dan tutup port 3000 dari luar.
+   Layanan juga dibatasi: tanpa `sudo`, hanya bisa menulis di `data/`, dan berkas baru hanya terbaca pemiliknya. Bila ada celah di pembaca pesan WhatsApp, penyusup tidak bisa mengambil alih server.
+5. HTTPS, agar kata sandi dan cookie masuk tidak terkirim tanpa enkripsi. Halaman pengelola hanya mendengar `127.0.0.1`; dari luar dibuka lewat Caddy.
+   - Buat nama gratis di [duckdns.org](https://www.duckdns.org) (misalnya `botcuaca-nawungan.duckdns.org`) dan isi IP publik server.
+   - Tambahkan aturan masuk TCP 80 dan 443 di Security List VCN (port 3000 tidak perlu dibuka), lalu di server:
+     ```bash
+     sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+     sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+     sudo netfilter-persistent save
+     ```
+   - Pasang Caddy (dari repo resminya) dan arahkan ke bot. Sertifikat HTTPS diambil dan diperpanjang sendiri:
+     ```bash
+     sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+     sudo apt update && sudo apt install -y caddy
+     printf 'botcuaca-nawungan.duckdns.org {\n\treverse_proxy 127.0.0.1:3000\n}\n' | sudo tee /etc/caddy/Caddyfile
+     sudo systemctl reload caddy
+     ```
+   - Halaman pengelola: `https://botcuaca-nawungan.duckdns.org`. Bot mengenali HTTPS dari Caddy: cookie masuk hanya dikirim lewat HTTPS, dan kunci salah sandi memakai alamat asli pengunjung.
+   - Sebelum nama DuckDNS siap, halaman bisa dibuka dari laptop lewat terowongan SSH: `ssh -L 3000:127.0.0.1:3000 ubuntu@<IP-SERVER>`, lalu buka `http://localhost:3000`.
 
 Data penting ada di folder `data/` (sesi WhatsApp dan pengaturan grup). Jangan dibagikan. Saat pindah komputer, matikan bot di tempat lama dulu; sesi yang sama tidak boleh berjalan di dua tempat.
 
 ### Kata sandi halaman pengelola
 
-Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter. Setelah 5 kali salah, login dari alamat yang sama dikunci 15 menit.
+Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter, dan memberi peringatan di halaman bila kurang dari 12.
 
-- Pakai huruf, angka, dan tanda `-`, misalnya beberapa kata acak ditambah angka. Tanda `#` memotong kata sandi tanpa peringatan (`abc#123` terbaca `abc`); bila perlu `#`, apit dengan tanda kutip.
-- Mengganti: ubah `ADMIN_PASSWORD` dengan `nano ~/bot-cuaca/.env`, lalu `sudo systemctl restart bot-cuaca`.
-- Browser yang sudah masuk tetap masuk sampai 30 hari walau kata sandi diganti. Untuk mengeluarkan semuanya (misalnya saat serah terima pengurus), hapus `data/login-sessions.json` sebelum restart.
+- Pakai huruf, angka, dan tanda `-`, misalnya beberapa kata acak: `jagung-embun-pacul-senja`. Tanda `#` memotong kata sandi tanpa peringatan (`abc#123` terbaca `abc`); bila perlu `#`, apit dengan tanda kutip.
+- Mengganti: ubah `ADMIN_PASSWORD` dengan `nano ~/bot-cuaca/.env`, lalu `sudo systemctl restart bot-cuaca`. Semua browser yang sedang masuk otomatis keluar, jadi cukup ganti kata sandi saat serah terima pengurus.
+- Salah 5 kali dari satu alamat: alamat itu dikunci 15 menit. Salah 30 kali dalam 15 menit dari berbagai alamat (tebakan beramai-ramai): semua percobaan masuk dikunci 15 menit dan tercatat di **Pesan terakhir** sebagai *keamanan*.
+- Pesan di alamat halaman (`?pesan=`) ditandatangani bot, jadi tautan dari luar tidak bisa memunculkan teks palsu di halaman pengelola. Formulir dari situs lain dan pembingkaian halaman (iframe) ditolak.
 
 ## Catatan teknis
 
 - **Keterangan cuaca BMKG.** Hujan dan petir dinilai dari teks `weather_desc`, bukan kode angka. Di API publik BMKG, kode 61 berketerangan "Hujan Ringan" dan 63 "Hujan Sedang", berbeda dari tabel kode yang sering dikutip.
-- **Jam kerja** = slot BMKG (masing-masing mewakili 3 jam) yang bersinggungan dengan 06.00-18.00. Jam slot BMKG bisa bergeser (pernah 06/09/12/15, Oktober 2026 menjadi 05/08/11/14/17), jadi tidak dipatok ke jam tertentu.
+- **Jam kerja** = slot BMKG (masing-masing mewakili 3 jam) yang bersinggungan dengan 06.00-18.00. Jam slot BMKG sering bergeser (pernah 06/09/12/15, 05/08/11/14/17, dan 07/10/13/16), jadi tidak dipatok ke jam tertentu.
 - **Peluang hujan** (BMKG sendiri tidak memberinya) = rata-rata 5 pusat cuaca dunia lewat Open-Meteo Ensemble API: ECMWF, ICON (Jerman), GFS (Amerika), UKMO (Inggris), GEM (Kanada), sekitar 160 versi hitungan model. Peluang tiap pusat = bagian anggota ensembelnya yang hujan minimal 1 mm dalam 3 jam slot; tiap pusat berbobot sama. Ambang 1 mm sengaja dipakai karena model global terlalu sering memprakirakan gerimis tipis di daerah tropis. Bila ensembel gagal, cadangannya peluang hujan Open-Meteo biasa, lalu BMKG saja. Lihat rinciannya per pusat: `npm run preview -- --sumber`.
 - **Catatan prakiraan** di `data/prakiraan.json`: setiap ringkasan pagi menyimpan keterangan BMKG dan peluang tiap pusat untuk jam kerja hari itu. Belum dipakai menghitung; disiapkan untuk menilai sumber mana yang paling tepat di Selopamioro begitu ada data hujan yang benar-benar turun (BMKG tidak menyimpan prakiraan lamanya).
 - **Hujan pasti** = BMKG memprakirakan hujan dan peluang hujan pada jam itu ≥ `RAIN_SURE_PERCENT` (bawaan 70%). Aturannya:

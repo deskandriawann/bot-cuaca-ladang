@@ -16,10 +16,35 @@ StartLimitBurst=5
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/bot-cuaca
+# Folder data disiapkan dulu: milik ubuntu dan hanya bisa dibuka pemiliknya (+ = dijalankan sebagai root)
+ExecStartPre=+/usr/bin/install -d -o ubuntu -g ubuntu -m 700 /home/ubuntu/bot-cuaca/data
 ExecStart=/usr/bin/node src/index.js
 Restart=on-failure
 RestartSec=60
 Environment=NODE_ENV=production
+
+# Pembatasan. Bot membaca pesan dari siapa saja yang menghubungi nomornya; bila ada celah di pembacanya,
+# penyusup tetap tidak bisa memakai sudo, tidak bisa menulis di luar data/, dan tidak bisa menyentuh sistem.
+NoNewPrivileges=true
+UMask=0077
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/bot-cuaca/data
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=multi-user.target

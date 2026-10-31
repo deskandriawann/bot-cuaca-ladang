@@ -19,17 +19,30 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 // Lama agar pengurus tidak perlu masuk ulang tiap pagi. Disimpan di berkas agar tetap berlaku
 // walau server dinyalakan ulang; yang disimpan hanya sidik SHA-256, bukan tokennya.
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+// Kata sandi lebih pendek dari ini tetap diterima (minimal 8), tetapi diberi peringatan di halaman dan log
+const STRONG_PASSWORD_LENGTH = 12;
 const manualMode = config.waMode === 'manual';
 const sessionsFile = path.join(config.dataDir, 'login-sessions.json');
 const hashSid = (sid) => crypto.createHash('sha256').update(sid).digest('hex');
+
+// Sidik kata sandi (scrypt bergaram) disimpan bersama sesi: bila kata sandi di .env diganti, semua sesi lama gugur
+const passwordPrint = (salt) => `${salt}:${crypto.scryptSync(config.adminPassword, Buffer.from(salt, 'hex'), 32).toString('hex')}`;
+let currentPrint = null;
 const sessions = loadSessions();
 
 function loadSessions() {
   try {
-    return new Map(Object.entries(JSON.parse(fs.readFileSync(sessionsFile, 'utf8'))));
+    const saved = JSON.parse(fs.readFileSync(sessionsFile, 'utf8'));
+    const salt = String(saved.password ?? '').split(':')[0];
+    if (/^[a-f0-9]{32}$/.test(salt) && passwordPrint(salt) === saved.password) {
+      currentPrint = saved.password;
+      return new Map(Object.entries(saved.sessions ?? {}));
+    }
   } catch {
-    return new Map();
+    // belum ada atau rusak: semua masuk ulang
   }
+  currentPrint = passwordPrint(crypto.randomBytes(16).toString('hex'));
+  return new Map();
 }
 
 function saveSessions() {
@@ -37,7 +50,7 @@ function saveSessions() {
   for (const [key, expiry] of sessions) if (expiry <= now) sessions.delete(key);
   fs.mkdirSync(path.dirname(sessionsFile), { recursive: true });
   const tmp = `${sessionsFile}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(sessions)));
+  fs.writeFileSync(tmp, JSON.stringify({ password: currentPrint, sessions: Object.fromEntries(sessions) }));
   fs.renameSync(tmp, sessionsFile);
 }
 
@@ -111,10 +124,73 @@ const testKey = (state) => `${state.linkedAt}|${state.groupJid}`;
 
 const morningTime = (date) => `${pad(config.morningHour)}.${pad(stableJitter(date, config.morningJitterMin))}`;
 
-// Kunci login setelah beberapa kali salah, per alamat IP
+// Kunci masuk setelah beberapa kali salah: per alamat IP, dan untuk semua alamat sekaligus bila salahnya
+// datang dari banyak alamat (tebakan beramai-ramai). Hitungan dibuang setelah 15 menit tanpa salah lagi.
 const LOGIN_MAX_FAILS = 5;
+const LOGIN_GLOBAL_MAX_FAILS = 30;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
-const failedLogins = new Map();
+const failedLogins = new Map(); // ip → { count, at, until }
+let recentFails = [];
+let globalLockUntil = 0;
+
+function recordFailedLogin(ip, now) {
+  for (const [key, f] of failedLogins) if (now - f.at > LOGIN_LOCK_MS && f.until < now) failedLogins.delete(key);
+  const fail = failedLogins.get(ip);
+  const count = (fail && !fail.until ? fail.count : 0) + 1;
+  failedLogins.set(ip, { count, at: now, until: count >= LOGIN_MAX_FAILS ? now + LOGIN_LOCK_MS : 0 });
+  if (count === LOGIN_MAX_FAILS) logger.warn(`Masuk dikunci 15 menit untuk ${ip}: ${count} kali kata sandi salah`);
+
+  recentFails = [...recentFails.filter((t) => now - t < LOGIN_LOCK_MS), now];
+  if (recentFails.length >= LOGIN_GLOBAL_MAX_FAILS) {
+    globalLockUntil = now + LOGIN_LOCK_MS;
+    recentFails = [];
+    logger.warn(`Semua percobaan masuk dikunci 15 menit: ${LOGIN_GLOBAL_MAX_FAILS} kali kata sandi salah dari berbagai alamat`);
+    addLog('keamanan', `Halaman pengelola dikunci 15 menit: ${LOGIN_GLOBAL_MAX_FAILS} kali kata sandi salah dari berbagai alamat`);
+  }
+}
+
+// Permintaan dari komputer ini sendiri: mode develop, atau reverse proxy HTTPS (Caddy) di server yang sama
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const fromLoopback = (req) => LOOPBACK.has(req.socket.remoteAddress);
+
+/** Alamat pengunjung. Di balik reverse proxy di server yang sama, alamat aslinya dikirim proxy di X-Forwarded-For. */
+function clientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (!fromLoopback(req) || typeof forwarded !== 'string') return req.socket.remoteAddress ?? '?';
+  return forwarded.split(',').at(-1).trim() || '?';
+}
+
+/** Dibuka lewat HTTPS: reverse proxy di server yang sama menandainya dengan X-Forwarded-Proto. */
+const viaHttps = (req) => fromLoopback(req) && req.headers['x-forwarded-proto'] === 'https';
+
+/** Kiriman formulir dari halaman ini sendiri. Browser lama tanpa header Origin dilindungi cookie SameSite=Strict. */
+function sameOrigin(req) {
+  const { origin } = req.headers;
+  if (origin === undefined) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false; // 'null' dari iframe terkurung dan sejenisnya
+  }
+}
+
+// Pesan di alamat halaman (?pesan=) ditandatangani, agar tautan dari luar tidak bisa memunculkan teks palsu
+// di halaman pengelola (misalnya "kata sandi diganti, hubungi nomor ini"). Kuncinya baru setiap bot menyala.
+const flashKey = crypto.randomBytes(32);
+const flashSig = (msg) => crypto.createHmac('sha256', flashKey).update(msg).digest('base64url');
+
+/** '/kirim', 'Terkirim', { jenis: 'besok' } → '/kirim?jenis=besok&pesan=Terkirim&tanda=…' */
+function withFlash(pathname, msg, params = {}) {
+  return `${pathname}?${new URLSearchParams({ ...params, pesan: msg, tanda: flashSig(msg) })}`;
+}
+
+function readFlash(url) {
+  const msg = url.searchParams.get('pesan');
+  const sig = Buffer.from(url.searchParams.get('tanda') ?? '');
+  if (!msg) return null;
+  const expected = Buffer.from(flashSig(msg));
+  return sig.length === expected.length && crypto.timingSafeEqual(sig, expected) ? msg : null;
+}
 
 function wibText(date) {
   const t = nowWib(date);
@@ -461,7 +537,9 @@ function dashboard(message, main = null) {
   ]);
 
   let content = '';
-  let notes = '';
+  let notes = config.adminPassword.length < STRONG_PASSWORD_LENGTH
+    ? flash(`Kata sandi halaman pengelola terlalu pendek. Ganti ADMIN_PASSWORD di .env dengan minimal ${STRONG_PASSWORD_LENGTH} karakter, misalnya beberapa kata acak.`, 'warn')
+    : '';
   if (manualMode) {
     content = main ? devCard(main) : '<section class="card"><h2>Mode manual</h2><p class="muted">Bot otomatis dimatikan (WA_MODE=manual). Kirim ringkasan setiap pagi lewat tombol di atas.</p></section>';
   } else {
@@ -469,7 +547,7 @@ function dashboard(message, main = null) {
       linked: hasLinkedSession(), grouped: Boolean(state.groupJid), quiet: phase === 'tenang', tested: state.testedFor === testKey(state),
     });
     content = setup.complete ? readyCards(state, today) : setupCard(setup, state, until, today);
-    notes = (wa.error ? flash(wa.error, 'bad') : '') + (phase === 'pemanasan'
+    notes += (wa.error ? flash(wa.error, 'bad') : '') + (phase === 'pemanasan'
       ? flash(`Masa pemanasan nomor baru sampai ${wibText(until)}: bot hanya mengirim ringkasan pagi dan sedikit jawaban, paling banyak ${dailyLimit('pemanasan')} pesan per hari.`, 'warn')
       : '');
   }
@@ -725,9 +803,10 @@ async function testMessage() {
   updateState({ testedFor: testKey(getState()) });
 }
 
-// API untuk mode develop di komputer yang sama: hanya dari 127.0.0.1, dengan token yang dibuat setiap bot menyala
+// API untuk mode develop di komputer yang sama: hanya dari 127.0.0.1, dengan token yang dibuat setiap bot menyala.
+// Di server (NODE_ENV=production) mode develop tidak dipakai, jadi API dimatikan sama sekali.
+const apiEnabled = !manualMode && process.env.NODE_ENV !== 'production';
 let apiToken = null;
-const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 function apiTokenMatches(token) {
   if (!apiToken || typeof token !== 'string') return false;
@@ -750,7 +829,11 @@ async function apiRoute(req, res, url) {
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
   };
-  if (!LOOPBACK.has(req.socket.remoteAddress) || !apiTokenMatches(req.headers['x-bot-token'])) return json(403, { error: 'Ditolak' });
+  if (!apiEnabled) return json(404, { error: 'Tidak ditemukan' });
+  // Lewat reverse proxy berarti datang dari luar, walau tampak dari 127.0.0.1
+  if (!fromLoopback(req) || req.headers['x-forwarded-for'] !== undefined || !apiTokenMatches(req.headers['x-bot-token'])) {
+    return json(403, { error: 'Ditolak' });
+  }
   if (manualMode) return json(503, { error: 'Bot utama dalam mode manual, tidak tersambung ke WhatsApp' });
 
   if (req.method === 'GET' && url.pathname === '/api/status') {
@@ -821,6 +904,13 @@ function sendAsset(req, res, asset) {
 async function route(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const method = req.method;
+  // Halaman tidak boleh dibingkai situs lain (clickjacking), formulir hanya terkirim ke sini, alamat tidak bocor ke luar
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'");
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  if (viaHttps(req)) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+
   if (url.pathname.startsWith('/api/')) return apiRoute(req, res, url);
   // Sebelum pemeriksaan masuk agar logo juga tampil di halaman masuk
   if (method === 'GET' && (url.pathname === '/favicon.ico' || url.pathname.startsWith('/aset/'))) {
@@ -832,18 +922,22 @@ async function route(req, res) {
     }
     return sendAsset(req, res, asset);
   }
+  if (method === 'POST' && !sameOrigin(req)) {
+    return send(res, 403, page('Ditolak', '<h1>Permintaan ditolak</h1><p>Kirim formulir langsung dari halaman pengelola.</p><a class="btn" href="/">Kembali</a>'));
+  }
   const authed = sessionOf(req);
+  const secure = viaHttps(req) ? '; Secure' : '';
 
   if (url.pathname === '/masuk' && method === 'POST') {
     const form = await readForm(req);
-    const ip = req.socket.remoteAddress ?? '?';
-    const fail = failedLogins.get(ip);
-    if (fail?.until > Date.now()) {
-      return send(res, 429, loginPage(`Terlalu banyak percobaan. Coba lagi setelah pukul ${nowWib(new Date(fail.until)).hhmm} WIB.`));
+    const ip = clientIp(req);
+    const now = Date.now();
+    const lockedUntil = Math.max(globalLockUntil, failedLogins.get(ip)?.until ?? 0);
+    if (lockedUntil > now) {
+      return send(res, 429, loginPage(`Terlalu banyak percobaan. Coba lagi setelah pukul ${nowWib(new Date(lockedUntil)).hhmm} WIB.`));
     }
     if (!passwordMatches(form.password ?? '')) {
-      const count = (fail && !fail.until ? fail.count : 0) + 1;
-      failedLogins.set(ip, { count, until: count >= LOGIN_MAX_FAILS ? Date.now() + LOGIN_LOCK_MS : 0 });
+      recordFailedLogin(ip, now);
       await new Promise((r) => setTimeout(r, 1000));
       return send(res, 401, loginPage('Kata sandi salah'));
     }
@@ -851,31 +945,32 @@ async function route(req, res) {
     const sid = crypto.randomBytes(32).toString('hex');
     sessions.set(hashSid(sid), Date.now() + SESSION_MS);
     saveSessions();
-    return redirect(res, '/', { 'Set-Cookie': `sid=${sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MS / 1000}` });
+    return redirect(res, '/', { 'Set-Cookie': `sid=${sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MS / 1000}${secure}` });
   }
   if (!authed) return send(res, 200, loginPage());
 
+  const flashMsg = readFlash(url);
   if (manualMode && ['/tautan', '/ganti-nomor', '/grup', '/daftar', '/kode', '/uji', '/kirim-pagi'].includes(url.pathname)) {
-    return redirect(res, `/?pesan=${encodeURIComponent('Bot otomatis dimatikan (WA_MODE=manual). Pakai kirim manual.')}`);
+    return redirect(res, withFlash('/', 'Bot otomatis dimatikan (WA_MODE=manual). Pakai kirim manual.'));
   }
   if (method === 'GET' && url.pathname === '/') {
-    return send(res, 200, dashboard(url.searchParams.get('pesan'), devBridge ? await mainBotStatus() : null));
+    return send(res, 200, dashboard(flashMsg, devBridge ? await mainBotStatus() : null));
   }
   if (method === 'GET' && url.pathname === '/tautan') return send(res, 200, pairingPage());
-  if (method === 'GET' && url.pathname === '/ganti-nomor') return send(res, 200, linkPage(url.searchParams.get('pesan')));
+  if (method === 'GET' && url.pathname === '/ganti-nomor') return send(res, 200, linkPage(flashMsg));
   if (method === 'GET' && url.pathname === '/grup') return send(res, 200, await groupPage());
 
   if (method === 'GET' && url.pathname === '/kirim') {
-    return send(res, 200, await manualPage(url.searchParams.get('jenis'), url.searchParams.get('pesan')));
+    return send(res, 200, await manualPage(url.searchParams.get('jenis'), flashMsg));
   }
 
   if (method === 'POST') {
     const form = await readForm(req);
-    const back = (msg) => redirect(res, `/?pesan=${encodeURIComponent(msg)}`);
+    const back = (msg) => redirect(res, withFlash('/', msg));
     try {
       switch (url.pathname) {
         case '/daftar': {
-          const retry = (msg) => redirect(res, `/ganti-nomor?pesan=${encodeURIComponent(msg)}`);
+          const retry = (msg) => redirect(res, withFlash('/ganti-nomor', msg));
           const phone = normalizePhone(form.phone ?? '');
           if (!phone) return retry('Nomor tidak valid. Contoh: 081234567890');
           if (!['cek_profil', 'cek_pin', 'cek_kontak', 'cek_qr'].every((key) => form[key] === '1')) {
@@ -891,7 +986,7 @@ async function route(req, res) {
         }
         case '/kirim-lewat-bot': {
           const kind = MANUAL_TEXTS[form.jenis] ? form.jenis : 'pagi';
-          const to = (msg) => redirect(res, `/kirim?jenis=${encodeURIComponent(kind)}&pesan=${encodeURIComponent(msg)}`);
+          const to = (msg) => redirect(res, withFlash('/kirim', msg, { jenis: kind }));
           if (!devBridge) return to('Gagal: hanya tersedia di mode develop (npm run dev)');
           try {
             await mainBot('/api/kirim', { text: await buildText(kind) });
@@ -922,7 +1017,7 @@ async function route(req, res) {
         case '/keluar':
           sessions.delete(hashSid(authed));
           saveSessions();
-          return redirect(res, '/', { 'Set-Cookie': 'sid=; Path=/; Max-Age=0' });
+          return redirect(res, '/', { 'Set-Cookie': `sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}` });
         default:
           break;
       }
@@ -937,16 +1032,23 @@ export function startAdmin() {
   if (!config.adminPassword || config.adminPassword.length < 8) {
     throw new Error('ADMIN_PASSWORD di .env wajib diisi, minimal 8 karakter');
   }
-  if (!manualMode) {
+  if (config.adminPassword.length < STRONG_PASSWORD_LENGTH) {
+    logger.warn(`ADMIN_PASSWORD terlalu pendek: sebaiknya minimal ${STRONG_PASSWORD_LENGTH} karakter`);
+  }
+  const tokenFile = path.join(config.dataDir, 'api-token');
+  if (apiEnabled) {
     // Token baru setiap bot utama menyala, dibaca mode develop dari berkas ini
     apiToken = crypto.randomBytes(24).toString('hex');
     fs.mkdirSync(config.dataDir, { recursive: true });
-    fs.writeFileSync(path.join(config.dataDir, 'api-token'), apiToken);
+    fs.writeFileSync(tokenFile, apiToken);
+  } else if (!manualMode) {
+    fs.rmSync(tokenFile, { force: true });
   }
   const server = http.createServer((req, res) => {
     route(req, res).catch((err) => {
+      // Rincian galat hanya di log, tidak ditampilkan ke pengunjung
       logger.error(err, 'Halaman pengelola');
-      if (!res.headersSent) send(res, 500, page('Galat', `<h1>Terjadi galat</h1><p>${esc(err.message)}</p>`));
+      if (!res.headersSent) send(res, 500, page('Galat', '<h1>Terjadi galat</h1><p>Coba lagi sebentar lagi. Bila terus terjadi, periksa log bot.</p><a class="btn" href="/">Kembali</a>'));
     });
   });
   server.listen(config.adminPort, config.adminHost, () => {

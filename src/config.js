@@ -70,8 +70,9 @@ export const config = {
   mainBotUrl: env('MAIN_BOT_URL', ''),
   mainBotTokenFile: env('MAIN_BOT_TOKEN_FILE', ''),
 
-  // Halaman pengelola. ADMIN_HOST=127.0.0.1 bila diakses lewat reverse proxy HTTPS di server yang sama.
-  adminHost: env('ADMIN_HOST', '0.0.0.0'),
+  // Halaman pengelola. Bawaan hanya dari komputer ini sendiri (atau reverse proxy HTTPS di server yang sama);
+  // 0.0.0.0 membukanya untuk perangkat lain di jaringan, tanpa enkripsi.
+  adminHost: env('ADMIN_HOST', '127.0.0.1'),
   adminPort: num('ADMIN_PORT', 3000),
   adminPassword: env('ADMIN_PASSWORD', ''),
 
