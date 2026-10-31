@@ -1,0 +1,9 @@
+# Akhir baris LF di semua tempat: layanan systemd dan skrip di server Linux rusak bila memakai CRLF
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.mp4 binary
+*.webm binary

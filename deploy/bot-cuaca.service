@@ -1,0 +1,25 @@
+# Layanan systemd agar bot menyala otomatis di server.
+# Pasang: sudo cp deploy/bot-cuaca.service /etc/systemd/system/
+#         sudo systemctl daemon-reload && sudo systemctl enable --now bot-cuaca
+#
+# Menyala ulang paling cepat 60 detik setelah berhenti, dan berhenti mencoba bila gagal 5 kali dalam 1 jam.
+# Menyala ulang yang terlalu sering berarti sambung ulang ke WhatsApp berkali-kali, dan itu mencurigakan.
+# Setelah berhenti karena batas ini: periksa log (journalctl -u bot-cuaca), perbaiki, lalu systemctl restart bot-cuaca.
+[Unit]
+Description=Bot WhatsApp Cuaca Ladang Selopamioro
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=3600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/bot-cuaca
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=60
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

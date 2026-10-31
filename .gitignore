@@ -1,0 +1,10 @@
+node_modules/
+# Sesi WhatsApp, kata sandi, dan state: jangan pernah diunggah
+data/
+data-dev/
+.env
+.env.*
+!.env.example
+*.log
+Thumbs.db
+.DS_Store

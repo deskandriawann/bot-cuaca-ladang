@@ -1,0 +1,19 @@
+# Pemeriksaan otomatis di GitHub setiap kode dikirim (push) atau diajukan (pull request):
+# lint, pengujian, dan celah keamanan paket yang ikut ke server. Tidak menyambung ke WhatsApp.
+name: Cek siap deploy
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
