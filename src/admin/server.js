@@ -39,7 +39,7 @@ async function login(req, res) {
   if (!passwordMatches(form.password ?? '')) {
     recordFailedLogin(ip, now);
     await new Promise((r) => setTimeout(r, 1000)); // memperlambat tebakan beruntun
-    return send(res, 401, loginPage('Kata sandi belum tepat. Coba ketik lagi pelan-pelan; centang "Tampilkan kata sandi" untuk memeriksanya.'));
+    return send(res, 401, loginPage('Kata sandi belum tepat. Periksa & isi dengan benar.'));
   }
   clearFailedLogins(ip);
   return redirect(res, '/', { 'Set-Cookie': startSession(req) });
