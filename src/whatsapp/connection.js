@@ -13,11 +13,12 @@ import makeWASocket, {
 } from 'baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
-import { config, paths } from './config.js';
+import { config, paths } from '../config.js';
 import { useSafeAuthState } from './auth-store.js';
-import { getState, updateState, addLog } from './store.js';
-import { nowWib } from './time.js';
+import { getState, updateState, addLog } from '../store.js';
+import { nowWib } from '../time.js';
 
+// Log terpisah untuk Baileys: sangat ramai, jadi bawaannya hanya peringatan
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'warn' });
 
 const MIN_GAP_MS = 15_000;
@@ -51,9 +52,10 @@ export function isConnected() {
   return wa.status === 'tersambung' && sock !== null;
 }
 
-const LOGGED_OUT_TEXT = 'WhatsApp mengeluarkan perangkat bot (kode 401). Sesi lama tidak bisa dipakai lagi. ' +
-  'Bila WhatsApp Business di HP bot masih bisa dibuka, tautkan ulang nomor yang sama satu kali. Bila tidak bisa dibuka, nomornya diblokir.';
-const FORBIDDEN_TEXT = 'WhatsApp menolak nomor bot (kode 403), kemungkinan diblokir. Cek aplikasi WhatsApp Business di HP bot.';
+// Ditampilkan ke pengurus: bahasa sehari-hari; kode WhatsApp (401/403) hanya dicatat di log
+const LOGGED_OUT_TEXT = 'WhatsApp memutus bot dari nomor ini. Bila WhatsApp Business di HP bot masih bisa dibuka, ' +
+  'tautkan lagi nomor yang sama satu kali lewat Ganti nomor bot. Bila tidak bisa dibuka, kemungkinan nomornya diblokir.';
+const FORBIDDEN_TEXT = 'WhatsApp menolak nomor bot, kemungkinan diblokir. Cek aplikasi WhatsApp Business di HP bot.';
 
 /**
  * Sesi tersimpan yang masih bisa dipakai: creds.me terisi (creds.registered tidak selalu diisi Baileys)
@@ -171,9 +173,9 @@ async function connect() {
     const until = nowWib(new Date(resumeAt)).hhmm;
     Object.assign(wa, {
       status: 'ditahan',
-      error: `Sudah ${recent.length} kali menyambung dalam 1 jam. Ditahan sampai pukul ${until} WIB, lalu tersambung sendiri.`,
+      error: `Bot beristirahat sampai pukul ${until} WIB karena terlalu sering menyambung. Setelah itu tersambung lagi sendiri, tidak perlu melakukan apa-apa.`,
     });
-    addLog('sambungan', `Ditahan sampai ${until} (terlalu sering menyambung)`);
+    addLog('sambungan', `Istirahat sampai pukul ${until} karena terlalu sering menyambung`);
     reconnectTimer = setTimeout(() => {
       if (gen === generation) connect().catch((err) => logger.error(err));
     }, resumeAt - Date.now());
@@ -216,7 +218,7 @@ async function connect() {
         stopSocket();
         stopWith('keluar', LOGGED_OUT_TEXT);
         updateState({ sessionRevoked: { at: new Date().toISOString(), code: DisconnectReason.loggedOut } });
-        addLog('nomor', 'Sesi tidak berlaku lagi (WhatsApp meminta penautan baru)');
+        addLog('nomor', 'WhatsApp meminta nomor ditautkan lagi');
         return;
       }
       wa.qr = await QRCode.toDataURL(qr);
@@ -232,7 +234,7 @@ async function connect() {
         updateState({ phone, linkedAt: new Date().toISOString(), sessionRevoked: null });
         addLog('nomor', `Tertaut sebagai ${phone}`);
       } else {
-        addLog('sambungan', 'Tersambung memakai sesi tersimpan, tanpa menautkan ulang');
+        addLog('sambungan', 'Tersambung kembali');
       }
       logger.info(`Tersambung sebagai ${phone}`);
     }
@@ -250,20 +252,22 @@ async function connect() {
         // Sesi dicabut WhatsApp: tandai agar tidak dipakai login lagi saat program menyala berikutnya
         stopWith('keluar', code === DisconnectReason.forbidden ? FORBIDDEN_TEXT : LOGGED_OUT_TEXT);
         updateState({ sessionRevoked: { at: new Date().toISOString(), code } });
-        addLog('nomor', `Dikeluarkan WhatsApp (kode ${code})`);
+        logger.warn(`Dikeluarkan WhatsApp (kode ${code})`);
+        addLog('nomor', code === DisconnectReason.forbidden ? 'Ditolak WhatsApp, kemungkinan diblokir' : 'Diputus WhatsApp, perlu ditautkan lagi');
         return;
       }
       if (code === DisconnectReason.connectionReplaced) {
-        stopWith('ganda', 'Sesi yang sama dibuka di tempat lain. Jalankan bot hanya di satu komputer, lalu nyalakan ulang.');
+        stopWith('ganda', 'Bot sedang berjalan di komputer lain dengan nomor yang sama. Jalankan di satu tempat saja, lalu nyalakan ulang bot ini.');
         return;
       }
       if (linking) {
-        stopWith('kedaluwarsa', 'Waktu penautan habis. Mulai lagi dari halaman utama bila perlu.');
+        stopWith('kedaluwarsa', 'Waktu memindai kode QR habis. Ulangi dari halaman utama bila perlu.');
         return;
       }
       // Sesi tertaut tapi sambungan putus (internet, server WhatsApp): sambung ulang perlahan dengan sesi yang sama
       wa.status = 'terputus';
-      addLog('sambungan', `Terputus sementara (kode ${code ?? '?'}), menyambung ulang sendiri`);
+      logger.info(`Terputus sementara (kode ${code ?? '?'})`);
+      addLog('sambungan', 'Terputus sebentar, menyambung lagi sendiri');
       const delay = Math.min(5 * 60_000, 5_000 * 2 ** attempt++);
       reconnectTimer = setTimeout(() => {
         if (gen === generation) connect().catch((err) => logger.error(err));

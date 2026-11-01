@@ -1,9 +1,10 @@
 // Titik masuk: halaman pengelola, sambungan WhatsApp, dan penjadwal.
 import { config } from './config.js';
 import { acquireLock, releaseLock } from './lock.js';
-import { startAdmin } from './admin.js';
-import { startExisting, onGroupMessage, shutdown } from './wa.js';
-import { handleGroupMessage, startScheduler } from './bot.js';
+import { startAdmin } from './admin/server.js';
+import { startExisting, onGroupMessage, shutdown } from './whatsapp/connection.js';
+import { handleGroupMessage } from './bot/replies.js';
+import { startScheduler } from './bot/scheduler.js';
 
 console.log(`Bot cuaca ${config.placeName} (panggilan: "halo ${config.botName}", mode ${config.waMode})`);
 

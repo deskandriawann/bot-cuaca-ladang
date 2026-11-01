@@ -37,6 +37,7 @@ export const config = {
 
   // Jadwal (jam WIB). Menit kirim diacak tiap hari agar tidak tepat sama setiap pagi.
   morningHour: num('MORNING_HOUR', 5),
+  morningMinute: num('MORNING_MINUTE', 0),
   morningJitterMin: num('MORNING_JITTER_MIN', 15),
   checkStartHour: num('CHECK_START_HOUR', 6),
   checkEndHour: num('CHECK_END_HOUR', 18),

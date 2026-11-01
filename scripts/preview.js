@@ -4,7 +4,8 @@
 //        npm run preview -- --sumber (peluang hujan tiap pusat cuaca per slot BMKG, 3 hari)
 import { config } from '../src/config.js';
 import { parseCall } from '../src/commands.js';
-import { answer, buildMorning, fetchWeather } from '../src/bot.js';
+import { answer } from '../src/bot/replies.js';
+import { buildMorning, fetchWeather } from '../src/bot/morning.js';
 import { ENSEMBLE_MODELS } from '../src/weather/sources.js';
 import { isFieldSlot } from '../src/weather/analysis.js';
 import { nowWib, shortDate, hourLabel } from '../src/time.js';

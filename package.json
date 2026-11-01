@@ -1,19 +1,21 @@
 {
   "name": "bot-cuaca-ladang",
   "version": "1.0.0",
+  "private": true,
   "description": "Bot WhatsApp informasi cuaca ladang untuk Kelompok Tani Nawungan 2, Selopamioro (KKN-PPM UGM YO 095)",
   "type": "module",
-  "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch scripts/dev.js",
     "test": "node --test test/*.test.js",
+    "test:watch": "node --test --watch test/*.test.js",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "check": "npm run lint && npm test && npm audit --omit=dev",
     "preview": "node scripts/preview.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.12"
   },
   "license": "MIT",
   "dependencies": {

@@ -15,6 +15,7 @@ const DEFAULT_STATE = {
   sent: { date: null, count: 0 }, // jumlah pesan keluar hari ini
   morningSentOn: null, // tanggal ringkasan pagi terakhir dicoba kirim
   morningStatus: null, // mengirim | terkirim | gagal
+  morningSchedule: null, // { hour, minute } jam kirim ringkasan dari halaman pengelola; null = MORNING_HOUR/MINUTE di .env
   alerts: { date: null, keys: [], updates: 0 }, // bahaya yang sudah diumumkan hari ini
   replies: { date: null, count: 0 },             // jumlah balasan panggilan hari ini
   log: [],             // catatan pengiriman terbaru

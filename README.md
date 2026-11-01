@@ -63,25 +63,44 @@ Semua kemungkinan penyebab blokir dan gangguan, penanganannya, dan urutan pemaka
 
 ```
 src/
-  index.js            titik masuk
-  config.js           pengaturan dari .env
-  wa.js               sambungan WhatsApp (Baileys), QR dan kode tautan, berhenti rapi
-  auth-store.js       penyimpanan sesi WhatsApp di data/auth (tulis atomik)
-  lock.js             satu bot per folder data
-  bot.js              jadwal 05.00, pemeriksaan per jam, jawaban panggilan
-  commands.js         pengurai "halo tani ..." (hari dan tanggal dari kalimat bebas)
-  messages.js         teks pesan
-  admin.js            halaman pengelola
-  store.js            data/state.json
-  time.js             waktu WIB
-  weather/sources.js  ambil data BMKG dan Open-Meteo
-  weather/analysis.js hujan, petir, angin, jam aman
-scripts/preview.js    contoh pesan tanpa WhatsApp
-scripts/dev.js        mode develop (npm run dev): muat ulang otomatis, tanpa WhatsApp
-test/                 pengujian (data contoh asli di test/fixtures)
-deploy/               layanan systemd
-.github/workflows/    cek otomatis di GitHub (npm run check)
-eslint.config.js      aturan pemeriksaan kode
+  index.js              titik masuk: kunci folder data, halaman pengelola, WhatsApp, penjadwal
+  config.js             pengaturan dari .env
+  log.js                log bersama (pino)
+  lock.js               satu bot per folder data
+  store.js              data/state.json dan catatan prakiraan
+  time.js               waktu WIB dan format jam
+  commands.js           pengurai "halo tani ..." (hari dan tanggal dari kalimat bebas)
+  messages.js           teks pesan WhatsApp
+  weather/
+    sources.js          ambil data BMKG, Open-Meteo, dan ensembel 5 pusat cuaca
+    analysis.js         hujan, petir, angin, peluang hujan, jam aman
+  whatsapp/
+    connection.js       sambungan WhatsApp (Baileys): penautan, sambung ulang, kirim, terima pesan grup
+    auth-store.js       penyimpanan sesi WhatsApp di data/auth (tulis atomik)
+  bot/
+    send.js             satu-satunya jalan kirim pesan: tahap nomor baru, batas harian, tanpa teks ganda
+    replies.js          jawaban "halo tani ..."
+    morning.js          ringkasan pagi
+    alerts.js           pemberitahuan perubahan mendadak dan pengingat hujan lebat
+    schedule.js         jam kirim ringkasan (dari halaman pengelola atau .env) dan menit acaknya
+    scheduler.js        penjadwal tiap 30 detik
+  admin/                halaman pengelola
+    server.js           server HTTP dan urutan pemeriksaan tiap permintaan
+    security.js         kata sandi, sesi masuk, kunci salah sandi, asal permintaan, header keamanan (CSP)
+    actions.js          tindakan formulir (tautkan nomor, pilih grup, pesan percobaan, jam kirim)
+    dashboard.js        halaman utama
+    pages.js            halaman masuk, kirim manual, kode QR, tautkan nomor, pilih grup
+    layout.js           kerangka halaman, ikon, spanduk
+    format.js           nomor, waktu, status, dan catatan kegiatan dalam bahasa sehari-hari
+    assets.js           gambar/video dari assets/ dan berkas static/
+    dev.js              mode develop: API kecil ke bot utama
+    static/             admin.css dan admin.js (tanpa sisipan di halaman)
+scripts/preview.js      contoh pesan tanpa WhatsApp
+scripts/dev.js          mode develop (npm run dev): muat ulang otomatis, tanpa WhatsApp
+test/                   pengujian per bagian; data contoh asli di test/fixtures, data uji bersama di test/helpers.js
+deploy/                 layanan systemd (dibatasi: tanpa sudo, hanya menulis di data/)
+.github/workflows/      cek otomatis di GitHub (npm run check)
+eslint.config.js        aturan pemeriksaan kode
 assets/               gambar halaman pengelola (.png/.jpg/.webp/.svg, video .mp4/.webm):
                         icon                            ikon tab, logo di atas, layar memuat
                         logo-unit, logo-ugm, logo-kkn   tiga logo di kaki halaman
@@ -89,15 +108,23 @@ assets/               gambar halaman pengelola (.png/.jpg/.webp/.svg, video .mp4
                         hero-poster                     gambar spanduk di HP dan sebelum video siap
 ```
 
+Aturan yang dijaga saat mengubah kode:
+
+- **Arah ketergantungan satu arah:** `weather/`, `messages.js`, `commands.js`, `time.js` tidak tahu WhatsApp; `bot/` memakai `whatsapp/`; `admin/` memakai `bot/`. Bagian bawah tidak pernah mengimpor bagian atasnya.
+- **Semua pesan keluar lewat `bot/send.js`** (`botSend`), agar batas harian, masa tenang, dan hanya-ke-grup-penerima tidak bisa terlewati.
+- **Halaman pengelola tanpa sisipan:** semua teks dari luar lewat `esc()`, gaya dan skrip hanya di `admin/static/` (CSP melarang skrip, gaya, dan `onclick` sisipan; pengujian memeriksanya).
+- **Pesan untuk pengurus dalam bahasa sehari-hari;** kode dan rincian teknis hanya ke log server.
+- `npm run check` hijau sebelum push. `test/modules.test.js` memuat semua modul, jadi jalur impor yang salah setelah berkas dipindah langsung ketahuan.
+
 ## Menjalankan di komputer sendiri
 
-Butuh Node.js 20 atau lebih baru.
+Butuh Node.js 20.12 atau lebih baru (disarankan 22, lihat `.nvmrc`).
 
 ```bash
 npm install
 cp .env.example .env        # isi ADMIN_PASSWORD
-npm test                    # pengujian
-npm run lint                # pemeriksaan kode (ESLint)
+npm test                    # pengujian (npm run test:watch: diulang tiap berkas disimpan)
+npm run lint                # pemeriksaan kode (ESLint); npm run lint:fix merapikan yang bisa dirapikan otomatis
 npm run check               # cek siap deploy: lint + pengujian + celah keamanan paket server
 npm run preview             # contoh ringkasan pagi dengan data hari ini
 npm run preview -- "halo tani cuaca 10 hari"
@@ -111,7 +138,7 @@ npm start                   # buka http://localhost:3000
 | `npm run dev` (http://localhost:3001) | Tidak, menitipkan ke bot utama | Ya, setiap file kode disimpan | Mengubah format pesan, halaman pengelola, logika cuaca. Aman dimuat ulang berkali-kali; memakai folder `data-dev/` sendiri |
 | `npm start` (http://localhost:3000) | Ya | Tidak | Bot utama: memegang satu-satunya sambungan WhatsApp. Nyalakan ulang seperlunya saja |
 
-Jalankan keduanya bersamaan di dua terminal. Di mode develop, menu **Pilih pesan untuk diuji** → **Kirim ke grup lewat bot utama** mengirim pesan yang disusun kode terbaru lewat sambungan bot utama: nomor dan sesinya sama, tidak ada sambungan kedua, dan semua pengaman tetap berlaku (hanya ke grup tujuan, batas harian, tanpa teks ganda). Pintu ini (`/api/status`, `/api/kirim`) hanya menerima permintaan dari komputer yang sama dengan token di `data/api-token` yang dibuat baru setiap bot utama menyala.
+Jalankan keduanya bersamaan di dua terminal. Di mode develop, menu **Pilih pesan untuk diuji** → **Kirim ke grup lewat bot utama** mengirim pesan yang disusun kode terbaru lewat sambungan bot utama: nomor dan sesinya sama, tidak ada sambungan kedua, dan semua pengaman tetap berlaku (hanya ke grup penerima, batas harian, tanpa teks ganda). Pintu ini (`/api/status`, `/api/kirim`) hanya menerima permintaan dari komputer yang sama dengan token di `data/api-token` yang dibuat baru setiap bot utama menyala.
 
 Jangan pakai `node --watch` untuk `npm start`: setiap muat ulang berarti sambung ulang ke WhatsApp, dan setelah 6 kali dalam satu jam bot ditahan oleh pemutus.
 
@@ -171,11 +198,11 @@ Data penting ada di folder `data/` (sesi WhatsApp dan pengaturan grup). Jangan d
 
 ### Kata sandi halaman pengelola
 
-Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter, dan memberi peringatan di halaman bila kurang dari 12.
+Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter, dan memberi peringatan di log saat menyala bila kurang dari 12.
 
 - Pakai huruf, angka, dan tanda `-`, misalnya beberapa kata acak: `jagung-embun-pacul-senja`. Tanda `#` memotong kata sandi tanpa peringatan (`abc#123` terbaca `abc`); bila perlu `#`, apit dengan tanda kutip.
 - Mengganti: ubah `ADMIN_PASSWORD` dengan `nano ~/bot-cuaca/.env`, lalu `sudo systemctl restart bot-cuaca`. Semua browser yang sedang masuk otomatis keluar, jadi cukup ganti kata sandi saat serah terima pengurus.
-- Salah 5 kali dari satu alamat: alamat itu dikunci 15 menit. Salah 30 kali dalam 15 menit dari berbagai alamat (tebakan beramai-ramai): semua percobaan masuk dikunci 15 menit dan tercatat di **Pesan terakhir** sebagai *keamanan*.
+- Salah 5 kali dari satu alamat: alamat itu dikunci 15 menit. Salah 30 kali dalam 15 menit dari berbagai alamat (tebakan beramai-ramai): semua percobaan masuk dikunci 15 menit dan tercatat di **Kegiatan bot terbaru** sebagai *Keamanan*.
 - Pesan di alamat halaman (`?pesan=`) ditandatangani bot, jadi tautan dari luar tidak bisa memunculkan teks palsu di halaman pengelola. Formulir dari situs lain dan pembingkaian halaman (iframe) ditolak.
 
 ## Catatan teknis
@@ -193,6 +220,8 @@ Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ik
 - **Peringatan dini BMKG (nowcasting)** belum disertakan: feed peringatan dini menolak akses dari server (HTTP 403) saat diuji pada 25 Oktober 2026. Perubahan mendadak saat ini dideteksi dari pembaruan prakiraan per 3 jam.
 - **Tautan rincian** `DETAIL_LINK` belum bisa diverifikasi otomatis (situs BMKG menolak akses dari skrip). Buka di peramban ponsel untuk memastikan, dan ganti di `.env` bila perlu.
 - **Penanda sesi tertaut** memakai `creds.me`, bukan `creds.registered`: di Baileys 7, `registered` bisa tetap `false` walau nomor sudah tertaut.
-- **Sesi tersimpan** di `data/auth` dan dipakai lagi setiap bot menyala, seperti WhatsApp Web. Penyimpanannya ([src/auth-store.js](src/auth-store.js)) memakai format berkas yang sama dengan `useMultiFileAuthState` bawaan Baileys, tetapi menulis secara atomik. Untuk menghentikan bot, tekan Ctrl+C **sekali** dan tunggu sampai berhenti sendiri; sambungan ditutup biasa (bukan logout) dan sesi selesai ditulis dulu. Menautkan ulang hanya perlu bila WhatsApp mengeluarkan perangkat bot (kode 401).
+- **Sesi tersimpan** di `data/auth` dan dipakai lagi setiap bot menyala, seperti WhatsApp Web. Penyimpanannya ([src/whatsapp/auth-store.js](src/whatsapp/auth-store.js)) memakai format berkas yang sama dengan `useMultiFileAuthState` bawaan Baileys, tetapi menulis secara atomik. Untuk menghentikan bot, tekan Ctrl+C **sekali** dan tunggu sampai berhenti sendiri; sambungan ditutup biasa (bukan logout) dan sesi selesai ditulis dulu. Menautkan ulang hanya perlu bila WhatsApp mengeluarkan perangkat bot (kode 401).
 - **Satu bot per folder data.** Bot kedua dengan `DATA_DIR` yang sama menolak menyala (`data/bot.lock`).
-- Bila server mati saat pukul 05.00, ringkasan tetap dikirim begitu server menyala sebelum pukul 09.00.
+- Bila server mati saat jadwal ringkasan pagi, ringkasan tetap dikirim begitu server menyala paling lambat 4 jam setelahnya (bawaan sebelum pukul 09.00).
+- **Jam kirim ringkasan** diatur pengurus di halaman pengelola (kotak *Jam kirim info cuaca*, 03.00-21.00), berlaku langsung tanpa menyalakan ulang dan disimpan di `data/state.json`. `MORNING_HOUR` dan `MORNING_MINUTE` di `.env` hanya jam bawaannya. Salam pembuka mengikuti jam kirim (pagi, siang, sore, malam).
+- Menguji jadwal kirim tepat pada menitnya, misalnya 17.50: isi `MORNING_JITTER_MIN=0` di `.env` dan nyalakan ulang bot, lalu atur jam 17.50 di halaman pengelola. Ringkasan hanya terkirim bila hari itu belum terkirim; kembalikan jam dan `MORNING_JITTER_MIN` setelah selesai.

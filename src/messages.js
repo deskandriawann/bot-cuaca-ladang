@@ -208,7 +208,16 @@ function adviceLines(slots) {
   return ['💡 *Saran*', ...lines];
 }
 
-export function morningMessage(bmkg, date) {
+/** Salam sesuai jam: ringkasan biasanya pagi, tetapi jam kirimnya bisa diubah pengurus. */
+export function greeting(hour) {
+  if (hour < 11) return 'Selamat pagi';
+  if (hour < 15) return 'Selamat siang';
+  if (hour < 18) return 'Selamat sore';
+  return 'Selamat malam';
+}
+
+/** hour: jam saat dikirim, untuk salam (bawaan pagi). */
+export function morningMessage(bmkg, date, hour = 5) {
   const slots = bmkg.days[date];
   if (!slots?.length) return unavailableMessage();
   const periods = [];
@@ -221,7 +230,7 @@ export function morningMessage(bmkg, date) {
   }
   return [
     '🌾 *INFO CUACA HARI INI*',
-    `Selamat pagi, Bapak/Ibu ${config.groupLabel} 🙏`,
+    `${greeting(hour)}, Bapak/Ibu ${config.groupLabel} 🙏`,
     '',
     `📍 ${bmkg.place}`,
     `📅 ${longDate(date)}`,

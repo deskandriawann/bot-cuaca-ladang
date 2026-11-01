@@ -46,6 +46,11 @@ export function hourLabel(hour) {
   return `${pad(hour)}.00`;
 }
 
+/** Menit sejak 00.00 → jam: 340 → '05.40' */
+export function minuteLabel(minutes) {
+  return `${pad(Math.floor(minutes / 60))}.${pad(minutes % 60)}`;
+}
+
 export function pad(n) {
   return String(n).padStart(2, '0');
 }

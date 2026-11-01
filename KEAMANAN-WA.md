@@ -80,16 +80,17 @@ Sumber harga Cloud API: [Pricing on the WhatsApp Business Platform](https://deve
 | Kemungkinan | Penanganan | Oleh |
 | --- | --- | --- |
 | Ponsel tidak aktif lebih dari 14 hari sehingga perangkat tertaut terputus | Buka WhatsApp Business minimal seminggu sekali dengan internet menyala | Pengurus |
-| Perangkat tertaut tidak sengaja dikeluarkan dari menu Perangkat tertaut, atau WhatsApp Business didaftarkan ulang di HP, misalnya setelah pasang ulang aplikasi (biasanya ikut mengeluarkan semua perangkat tertaut) | Status "Perangkat bot dikeluarkan WhatsApp"; tautkan ulang (dihitung sebagai percobaan). Setiap putus dan sambung tercatat di halaman pengelola beserta kodenya | Pengurus |
+| Perangkat tertaut tidak sengaja dikeluarkan dari menu Perangkat tertaut, atau WhatsApp Business didaftarkan ulang di HP, misalnya setelah pasang ulang aplikasi (biasanya ikut mengeluarkan semua perangkat tertaut) | Status "WhatsApp memutus bot"; tautkan ulang (dihitung sebagai percobaan). Setiap putus dan sambung tercatat di **Kegiatan bot terbaru**; kode WhatsApp-nya dicatat di log server | Pengurus |
 
 ### G. Halaman pengelola
 
 | Kemungkinan | Penanganan | Oleh |
 | --- | --- | --- |
-| Kata sandi ditebak | Satu alamat dikunci 15 menit setelah 5 kali salah; semua percobaan dikunci 15 menit setelah 30 kali salah dari berbagai alamat (tercatat sebagai *keamanan*); peringatan bila kata sandi kurang dari 12 karakter | Kode |
+| Kata sandi ditebak | Satu alamat dikunci 15 menit setelah 5 kali salah; semua percobaan dikunci 15 menit setelah 30 kali salah dari berbagai alamat (tercatat sebagai *keamanan*); peringatan di log server bila kata sandi kurang dari 12 karakter | Kode |
 | Kata sandi atau cookie disadap (HTTP tanpa enkripsi) | Halaman hanya mendengar `127.0.0.1`; dari luar lewat HTTPS (Caddy + DuckDNS, lihat README). Lewat HTTPS, cookie bertanda `Secure` | Pengembang |
 | Pengurus lama masih bisa masuk setelah serah terima | Ganti `ADMIN_PASSWORD`: semua sesi masuk otomatis gugur | Pengembang |
 | Tautan palsu yang memunculkan pesan di halaman pengelola, formulir dari situs lain, atau halaman dibingkai situs lain | Pesan di alamat ditandatangani bot; cookie `SameSite=Strict` dan pemeriksaan `Origin`; iframe dilarang | Kode |
+| Teks berbahaya disisipkan ke halaman (misalnya lewat nama grup WhatsApp) | Semua teks dari luar di-*escape*; kebijakan keamanan (CSP) melarang skrip, gaya, dan `onclick` sisipan, jadi skrip asing tidak bisa berjalan walau lolos | Kode |
 | Penyusup masuk lalu mengirim spam | Tetap hanya bisa ke grup tujuan, hanya pesan cuaca (tidak bisa teks bebas), dengan batas harian dan gerbang penautan | Kode |
 | Celah di pembaca pesan WhatsApp (siapa pun bisa mengirim pesan ke nomor bot) | Layanan systemd dibatasi: tanpa `sudo`, hanya bisa menulis di `data/`, berkas hanya terbaca pemilik. API mode develop mati di server | Kode |
 

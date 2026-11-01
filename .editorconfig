@@ -1,0 +1,13 @@
+# Gaya berkas yang sama di semua editor: UTF-8, akhir baris LF (lihat .gitattributes), indentasi 2 spasi
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
