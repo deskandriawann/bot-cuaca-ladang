@@ -54,7 +54,8 @@ export const config = {
   // (hanya ringkasan pagi dan sedikit jawaban, tanpa pemberitahuan mendadak), lalu normal.
   quietHoursAfterLink: num('QUIET_HOURS_AFTER_LINK', 24),
   warmupDays: num('WARMUP_DAYS', 7),
-  warmupMaxMessagesPerDay: num('WARMUP_MAX_MESSAGES_PER_DAY', 3),
+  warmupMaxMessagesPerHour: num('WARMUP_MAX_MESSAGES_PER_HOUR', 3), // saat pemanasan
+  maxMessagesPerHour: num('MAX_MESSAGES_PER_HOUR', 10),   // setelah pemanasan
   maxMessagesPerDay: num('MAX_MESSAGES_PER_DAY', 40),     // semua pesan keluar, termasuk kirim manual dari halaman pengelola
   maxLinkAttemptsPerDay: num('MAX_LINK_ATTEMPTS_PER_DAY', 3),
   maxConnectsPerHour: num('MAX_CONNECTS_PER_HOUR', 6),     // pemutus bila bot terus menyambung ulang (misalnya crash berulang)

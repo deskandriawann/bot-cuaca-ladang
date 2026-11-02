@@ -1,5 +1,6 @@
 // Tindakan dari formulir halaman pengelola. Tiap tindakan menerima isian formulir dan mengembalikan alamat tujuan
 // (dengan pesan bertanda tangan); galat yang lolos ditampilkan sebagai "Gagal: ..." oleh server.js.
+import { config } from '../config.js';
 import { minuteLabel, nowWib } from '../time.js';
 import { getState, updateState, addLog } from '../store.js';
 import { startLinking, requestPairingCode, listGroups, isConnected, hasLinkedSession } from '../whatsapp/connection.js';
@@ -91,6 +92,16 @@ async function saveSchedule(form) {
   return home(`Jam kirim disimpan: setiap hari sekitar pukul ${morningRange()} WIB.${today}`);
 }
 
+/** Info pagi otomatis nyala/mati. Saat mati, bot tidak mengirim apa pun sendiri; tetap menjawab pertanyaan. */
+async function toggleMorning(form) {
+  const on = form.aktif === '1';
+  updateState({ morningEnabled: on });
+  addLog('jadwal', on ? 'Info pagi dinyalakan' : 'Info pagi dimatikan');
+  return home(on
+    ? `Info cuaca pagi dinyalakan: dikirim setiap hari sekitar pukul ${morningRange()} WIB.`
+    : `Info cuaca pagi dimatikan. Bot hanya menjawab pertanyaan "halo ${config.botName}" di grup.`);
+}
+
 /** Mode develop: kirim teks pilihan lewat bot utama. */
 async function sendViaMainBot(form) {
   const kind = MANUAL_TEXTS[form.jenis] ? form.jenis : 'pagi';
@@ -112,5 +123,6 @@ export const ACTIONS = {
   '/uji': { run: sendTest, autoOnly: true },
   '/kirim-pagi': { run: sendMorningNow, autoOnly: true },
   '/jam-pagi': { run: saveSchedule, autoOnly: true },
+  '/info-pagi': { run: toggleMorning, autoOnly: true },
   '/kirim-lewat-bot': { run: sendViaMainBot },
 };

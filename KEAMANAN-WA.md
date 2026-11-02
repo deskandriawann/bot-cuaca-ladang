@@ -47,8 +47,8 @@ Sumber harga Cloud API: [Pricing on the WhatsApp Business Platform](https://deve
 
 | Kemungkinan | Penanganan | Oleh |
 | --- | --- | --- |
-| Langsung mengirim begitu tertaut | Masa tenang 24 jam (diam total), lalu pemanasan 7 hari: paling banyak 3 pesan per hari, tanpa pemberitahuan mendadak | Kode |
-| Volume terlalu banyak | Batas 40 pesan keluar per hari, 3 pemberitahuan mendadak per hari, 30 jawaban per hari, jeda 30 detik antar-jawaban | Kode |
+| Langsung mengirim begitu tertaut | Masa tenang 24 jam (diam total), lalu pemanasan 7 hari: paling banyak 3 pesan per jam, tanpa pemberitahuan mendadak | Kode |
+| Volume terlalu banyak | Batas 10 pesan keluar per jam dan 40 per hari, 3 pemberitahuan mendadak per hari, 30 jawaban per hari, jeda 30 detik antar-jawaban | Kode |
 | Jam kirim persis sama setiap hari | Ringkasan pagi pada menit acak 05.00-05.14 (berbeda tiap hari, tanpa pola berurutan); pemeriksaan per jam juga pada menit acak | Kode |
 | Membalas seketika tanpa membaca | Pesan ditandai dibaca dengan jeda 1-4 detik, lalu status mengetik 3-12 detik; antar-pesan minimal 15 detik | Kode |
 | Aktif 24 jam | Panggilan hanya dijawab pukul 05.00-21.00. Status online hanya muncul saat mengirim | Kode |

@@ -13,9 +13,11 @@ const DEFAULT_STATE = {
   testedFor: null,     // "linkedAt|groupJid" saat pesan uji terakhir terkirim (langkah terakhir menyambungkan bot)
   connects: [],        // waktu sambung ke WhatsApp dalam 1 jam terakhir (pemutus sambung ulang)
   sent: { date: null, count: 0 }, // jumlah pesan keluar hari ini
+  recentSends: [],     // waktu pesan keluar dalam 1 jam terakhir (batas per jam)
   morningSentOn: null, // tanggal ringkasan pagi terakhir dicoba kirim
   morningStatus: null, // mengirim | terkirim | gagal
   morningSchedule: null, // { hour, minute } jam kirim ringkasan dari halaman pengelola; null = MORNING_HOUR/MINUTE di .env
+  morningEnabled: true, // false = info pagi dan peringatan cuaca tidak dikirim; bot hanya menjawab pertanyaan
   alerts: { date: null, keys: [], updates: 0 }, // bahaya yang sudah diumumkan hari ini
   replies: { date: null, count: 0 },             // jumlah balasan panggilan hari ini
   log: [],             // catatan pengiriman terbaru

@@ -61,6 +61,7 @@ export function statusOf(status) {
 const LOG_KINDS = {
   pagi: ['☀️', 'Info cuaca pagi'],
   jawaban: ['💬', 'Menjawab pertanyaan'],
+  tak_dijawab: ['🔇', 'Pertanyaan tidak dijawab'],
   pembaruan: ['⚠️', 'Peringatan cuaca'],
   uji: ['✅', 'Pesan percobaan'],
   nomor: ['📱', 'Nomor bot'],

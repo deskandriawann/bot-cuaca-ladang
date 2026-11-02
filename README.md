@@ -7,7 +7,7 @@ Bot mengirim informasi cuaca ke grup WhatsApp Kelompok Tani Nawungan 2.
 
 | Fitur | Waktu | Sumber |
 | --- | --- | --- |
-| Ringkasan pagi: cuaca pagi/siang/sore, hujan, petir, angin, suhu, jam aman ke ladang | Setiap hari pukul 05.00 WIB | BMKG |
+| Ringkasan pagi (informasi saja, tanpa saran): cuaca pagi/siang/sore, hujan, petir, angin, suhu. Bisa dimatikan dari halaman pengelola | Setiap hari pukul 05.00 WIB | BMKG |
 | Pemberitahuan perubahan mendadak (hujan lebat pasti, petir, angin kencang baru) dan pengingat menjelang hujan lebat | Dicek tiap jam 06.00-18.00, paling banyak 3 kali sehari | BMKG, peluang hujan gabungan 5 model cuaca dunia |
 | Cek cuaca hari ke-1 sampai ke-3, rincian per 3 jam | Saat dipanggil | BMKG |
 | Cek cuaca hari ke-4 sampai ke-10, gambaran singkat | Saat dipanggil | Open-Meteo |
@@ -54,7 +54,7 @@ Semua kemungkinan penyebab blokir dan gangguan, penanganannya, dan urutan pemaka
 
 - **Nomor:** dipakai chat biasa minimal 10 hari sebelum ditautkan, profil lengkap, PIN dua langkah, disimpan anggota (dicentang di halaman pengelola sebelum menautkan), masa aktif SIM dipantau.
 - **Penautan:** lewat QR, paling banyak 3 kali sehari, berhenti sendiri bila waktu habis, tidak pernah menautkan ulang otomatis.
-- **Pengiriman:** satu pintu yang hanya mengizinkan grup tujuan; masa tenang 24 jam dan pemanasan 7 hari; batas harian; menit kirim acak; tandai dibaca, status mengetik, jeda; tidak menjawab malam hari; teks sama tidak dikirim dua kali; ringkasan paling banyak sekali sehari.
+- **Pengiriman:** satu pintu yang hanya mengizinkan grup tujuan; masa tenang 24 jam dan pemanasan 7 hari; batas pesan per jam (3 saat pemanasan, 10 setelahnya) dan 40 per hari; menit kirim acak; tandai dibaca, status mengetik, jeda; tidak menjawab malam hari; teks sama tidak dikirim dua kali; ringkasan paling banyak sekali sehari.
 - **Isi:** pesan otomatis tanpa tautan; tautan BMKG ditaruh di deskripsi grup dan di teks Kirim manual.
 - **Server:** pemutus sambung ulang (maks 6 per jam, tetap berlaku walau program crash), systemd tidak menyalakan ulang beruntun, versi Baileys dikunci, deteksi sesi ganda.
 - **Cadangan:** Kirim manual selalu tersedia; `WA_MODE=manual` mematikan Baileys sepenuhnya.
@@ -73,7 +73,7 @@ src/
   messages.js           teks pesan WhatsApp
   weather/
     sources.js          ambil data BMKG, Open-Meteo, dan ensembel 5 pusat cuaca
-    analysis.js         hujan, petir, angin, peluang hujan, jam aman
+    analysis.js         hujan, petir, angin, peluang hujan, waktu menyemprot
   whatsapp/
     connection.js       sambungan WhatsApp (Baileys): penautan, sambung ulang, kirim, terima pesan grup
     auth-store.js       penyimpanan sesi WhatsApp di data/auth (tulis atomik)
@@ -213,15 +213,16 @@ Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ik
 - **Catatan prakiraan** di `data/prakiraan.json`: setiap ringkasan pagi menyimpan keterangan BMKG dan peluang tiap pusat untuk jam kerja hari itu. Belum dipakai menghitung; disiapkan untuk menilai sumber mana yang paling tepat di Selopamioro begitu ada data hujan yang benar-benar turun (BMKG tidak menyimpan prakiraan lamanya).
 - **Hujan pasti** = BMKG memprakirakan hujan dan peluang hujan pada jam itu ≥ `RAIN_SURE_PERCENT` (bawaan 70%). Aturannya:
   - Hujan ringan, atau hujan yang belum pasti: cukup info satu baris, misalnya "☔ Mungkin hujan sedang sekitar pukul 14.00 (peluang 50%)".
-  - Hujan sedang, lebat, atau hujan petir yang pasti: tambahan "⚠️ POTENSI HUJAN" dan masuk perhitungan jam aman.
+  - Hujan sedang, lebat, atau hujan petir yang pasti: tambahan "⚠️ POTENSI HUJAN".
   - Hujan lebat atau hujan petir yang pasti: pesan susulan saat baru muncul di prakiraan, dan pengingat sekali saat jam hujannya mulai atau sejam sebelumnya.
   - Petir selalu dihitung bahaya, berapa pun peluangnya. Bila Open-Meteo gagal, hujan dinilai dari keterangan BMKG saja (seperti dulu).
-- **Jam aman** = jam kerja tanpa hujan sedang/lebat yang pasti, petir, atau angin ≥ `STRONG_WIND_KMH`.
+- **Bahaya** (dipakai untuk pemberitahuan dan tanda ⚠️ di rincian per jam) = hujan sedang/lebat yang pasti, petir, atau angin ≥ `STRONG_WIND_KMH`.
 - **Peringatan dini BMKG (nowcasting)** belum disertakan: feed peringatan dini menolak akses dari server (HTTP 403) saat diuji pada 25 Oktober 2026. Perubahan mendadak saat ini dideteksi dari pembaruan prakiraan per 3 jam.
 - **Tautan rincian** `DETAIL_LINK` belum bisa diverifikasi otomatis (situs BMKG menolak akses dari skrip). Buka di peramban ponsel untuk memastikan, dan ganti di `.env` bila perlu.
 - **Penanda sesi tertaut** memakai `creds.me`, bukan `creds.registered`: di Baileys 7, `registered` bisa tetap `false` walau nomor sudah tertaut.
 - **Sesi tersimpan** di `data/auth` dan dipakai lagi setiap bot menyala, seperti WhatsApp Web. Penyimpanannya ([src/whatsapp/auth-store.js](src/whatsapp/auth-store.js)) memakai format berkas yang sama dengan `useMultiFileAuthState` bawaan Baileys, tetapi menulis secara atomik. Untuk menghentikan bot, tekan Ctrl+C **sekali** dan tunggu sampai berhenti sendiri; sambungan ditutup biasa (bukan logout) dan sesi selesai ditulis dulu. Menautkan ulang hanya perlu bila WhatsApp mengeluarkan perangkat bot (kode 401).
 - **Satu bot per folder data.** Bot kedua dengan `DATA_DIR` yang sama menolak menyala (`data/bot.lock`).
 - Bila server mati saat jadwal ringkasan pagi, ringkasan tetap dikirim begitu server menyala paling lambat 4 jam setelahnya (bawaan sebelum pukul 09.00).
+- **Info pagi nyala/mati** di halaman pengelola (kotak *Info cuaca setiap pagi*). Saat mati, bot tidak mengirim apa pun sendiri (ringkasan pagi maupun peringatan cuaca) dan hanya menjawab "halo tani ..."; tombol *Kirim info cuaca sekarang* tetap bisa dipakai sekali-sekali.
 - **Jam kirim ringkasan** diatur pengurus di halaman pengelola (kotak *Jam kirim info cuaca*, 03.00-21.00), berlaku langsung tanpa menyalakan ulang dan disimpan di `data/state.json`. `MORNING_HOUR` dan `MORNING_MINUTE` di `.env` hanya jam bawaannya. Salam pembuka mengikuti jam kirim (pagi, siang, sore, malam).
 - Menguji jadwal kirim tepat pada menitnya, misalnya 17.50: isi `MORNING_JITTER_MIN=0` di `.env` dan nyalakan ulang bot, lalu atur jam 17.50 di halaman pengelola. Ringkasan hanya terkirim bila hari itu belum terkirim; kembalikan jam dan `MORNING_JITTER_MIN` setelah selesai.

@@ -28,7 +28,7 @@ export function pendingAlerts(remaining, announced, hour) {
 export async function checkChanges() {
   const state = getState();
   const now = nowWib();
-  if (!state.groupJid || state.morningSentOn !== now.date || linkPhase().phase !== 'normal') return;
+  if (!state.groupJid || state.morningEnabled === false || state.morningSentOn !== now.date || linkPhase().phase !== 'normal') return;
 
   const alerts = state.alerts.date === now.date ? state.alerts : { date: now.date, keys: [], updates: 0 };
   if (alerts.updates >= config.maxUpdatesPerDay) return;

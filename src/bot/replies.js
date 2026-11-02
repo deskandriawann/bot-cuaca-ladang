@@ -77,6 +77,8 @@ export async function handleGroupMessage({ jid, text, msg }) {
     await botSend(jid, await answer(call, now.date), msg);
     addLog('jawaban', text.slice(0, 80));
   } catch (err) {
+    // Dicatat juga di halaman pengelola, agar pengurus tahu kenapa pertanyaan di grup tidak dijawab
     logger.info(`Panggilan tidak dijawab: ${err.message}`);
+    addLog('tak_dijawab', `“${text.slice(0, 60)}”: ${err.message}`);
   }
 }

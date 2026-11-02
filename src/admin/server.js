@@ -54,7 +54,7 @@ async function route(req, res) {
   if (path.startsWith('/api/')) return apiRoute(req, res, url);
   // Berkas dilayani sebelum pemeriksaan masuk, agar logo dan gaya juga tampil di halaman masuk
   if (method === 'GET' && (path === '/favicon.ico' || path.startsWith('/aset/'))) {
-    if (serveAsset(req, res, path === '/favicon.ico' ? 'icon' : path.slice('/aset/'.length))) return;
+    if (serveAsset(req, res, path === '/favicon.ico' ? 'icon' : path.slice('/aset/'.length), url)) return;
     return send(res, 404, '');
   }
   if (method === 'GET' && path.startsWith('/static/')) {

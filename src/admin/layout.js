@@ -1,7 +1,7 @@
 // Kerangka halaman pengelola: bilah atas, spanduk, kaki halaman, ikon, dan potongan tampilan yang dipakai bersama.
 // Gaya dan perilaku ada di static/admin.css dan static/admin.js (tanpa sisipan, lihat kebijakan keamanan di security.js).
 import { config } from '../config.js';
-import { FOOTER_LOGOS, HERO_VIDEOS, findAsset, staticUrl } from './assets.js';
+import { FOOTER_LOGOS, HERO_VIDEOS, assetUrl, staticUrl } from './assets.js';
 
 const UNIT_LABEL = 'KKN-PPM UGM Unit YO 095';
 
@@ -33,8 +33,9 @@ export function flash(message, kind = 'ok') {
 
 /** Spanduk atas selebar layar. Video hanya diputar di layar lebar; HP cukup gambar diam agar hemat kuota. */
 export function hero({ pill, title, lead, actions = '' }) {
-  const videos = HERO_VIDEOS.filter((name) => findAsset(name)).map((name) => `/aset/${name}`);
-  const poster = findAsset('hero-poster') ? ' poster="/aset/hero-poster"' : '';
+  const videos = HERO_VIDEOS.map((name) => assetUrl(name)).filter(Boolean);
+  const posterUrl = assetUrl('hero-poster');
+  const poster = posterUrl ? ` poster="${esc(posterUrl)}"` : '';
   return `<section class="hero">
 ${videos.length || poster ? `<video class="hero-video" muted playsinline preload="none"${poster} data-videos="${esc(JSON.stringify(videos))}" aria-hidden="true"></video>` : ''}
 <div class="wrap hero-body"><span class="pill">${esc(pill)}</span><h1>${esc(title)}</h1><p class="lead">${esc(lead)}</p>${actions}</div>
@@ -46,9 +47,10 @@ ${videos.length || poster ? `<video class="hero-video" muted playsinline preload
  * refresh: detik muat ulang sendiri (halaman QR); halaman itu tanpa layar memuat agar QR tidak tertutup.
  */
 export function page(title, body, { refresh, hero: banner = '', wide = false, nav = true } = {}) {
-  const logo = findAsset('icon') ? '<img src="/aset/icon" alt="">' : `<span class="logo-fallback">${ICONS.cloud}</span>`;
-  const footerLogos = FOOTER_LOGOS.filter(([name]) => findAsset(name))
-    .map(([name, alt]) => `<img src="/aset/${name}" alt="${alt}">`).join('');
+  const icon = assetUrl('icon');
+  const logo = icon ? `<img src="${esc(icon)}" alt="">` : `<span class="logo-fallback">${ICONS.cloud}</span>`;
+  const footerLogos = FOOTER_LOGOS.map(([name, alt]) => [assetUrl(name), alt]).filter(([src]) => src)
+    .map(([src, alt]) => `<img src="${esc(src)}" alt="${alt}">`).join('');
   return `<!doctype html><html lang="id"${refresh ? ' data-no-loader' : ''}><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">

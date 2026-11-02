@@ -78,6 +78,7 @@ img.qr{display:block;margin:8px auto;max-width:240px;width:100%;background:#fff;
 .tile.blue{background:linear-gradient(135deg,#1e3a8a,#1d4ed8)}
 .tile.green{background:linear-gradient(135deg,#047857,#15803d)}.tile.amber{background:linear-gradient(135deg,#b45309,#d97706)}
 .tile.red{background:linear-gradient(135deg,#991b1b,#dc2626)}.tile.violet{background:linear-gradient(135deg,#5b21b6,#7c3aed)}
+.tile.slate{background:linear-gradient(135deg,#334155,#475569)}
 
 /* Bilah atas dan kaki halaman */
 .topbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}

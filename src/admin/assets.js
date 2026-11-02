@@ -1,8 +1,9 @@
 // Berkas yang dilayani halaman pengelola:
 // - assets/ (gambar dan video milik unit, boleh diganti tanpa menyalakan ulang): icon, tiga logo kaki halaman,
 //   video spanduk (hero-video, hero-video-2, diputar bergantian) dan hero-poster. Boleh .png/.jpg/.jpeg/.webp/.svg/.ico/.mp4/.webm.
-// - src/admin/static/ (bagian kode): admin.css dan admin.js. Alamatnya diberi sidik isi (?v=...) agar boleh
-//   disimpan lama di browser, dan berganti sendiri setiap berkasnya diubah.
+// - src/admin/static/ (bagian kode): admin.css dan admin.js.
+// Alamat keduanya diberi sidik (?v=...) agar boleh disimpan lama di browser, dan berganti sendiri setiap berkasnya
+// diubah. Video spanduk jadi tidak diunduh ulang setiap kali berganti video.
 // Hanya nama dalam daftar yang dilayani, jadi tidak ada jalan membaca berkas lain di server.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -24,6 +25,15 @@ export function findAsset(name) {
     if (fs.existsSync(file)) return { file, type };
   }
   return null;
+}
+
+// Sidik dari waktu ubah dan ukuran, bukan isi: video terlalu besar untuk dibaca setiap halaman dibuka
+const assetVersion = ({ size, mtimeMs }) => `${Math.floor(mtimeMs).toString(36)}${size.toString(36)}`;
+
+/** '/aset/hero-video?v=…'; null bila berkasnya tidak ada */
+export function assetUrl(name) {
+  const asset = findAsset(name);
+  return asset ? `/aset/${name}?v=${assetVersion(fs.statSync(asset.file))}` : null;
 }
 
 // Dibaca setiap diminta (berkasnya kecil) agar perubahan saat develop langsung terlihat
@@ -52,14 +62,15 @@ export function serveStatic(req, res, url) {
 }
 
 /** Gambar dan video dari assets/, dengan Range (video) dan Last-Modified. false bila nama tidak dikenal. */
-export function serveAsset(req, res, name) {
+export function serveAsset(req, res, name, url) {
   const asset = findAsset(name);
   if (!asset) return false;
-  const { size, mtime } = fs.statSync(asset.file);
-  const modified = mtime.toUTCString();
+  const stat = fs.statSync(asset.file);
+  const { size } = stat;
+  const modified = stat.mtime.toUTCString();
   const headers = {
     'Content-Type': asset.type,
-    'Cache-Control': 'no-cache',
+    'Cache-Control': url?.searchParams.get('v') === assetVersion(stat) ? 'public, max-age=31536000, immutable' : 'no-cache',
     'Last-Modified': modified,
     'Accept-Ranges': 'bytes',
     'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'", // berkas SVG tidak boleh menjalankan skrip

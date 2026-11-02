@@ -1,7 +1,7 @@
 import './setup.js'; // harus paling awal: pengaturan bawaan dan folder data sementara
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { safeWindows, alertKeys, hazardsOf, withRainChance, sprayWindow } from '../src/weather/analysis.js';
+import { alertKeys, fieldSlots, hazardsOf, withRainChance } from '../src/weather/analysis.js';
 import { bmkg, dates, slot } from './helpers.js';
 
 test('BMKG dikelompokkan per tanggal WIB dan urut per jam', () => {
@@ -12,19 +12,12 @@ test('BMKG dikelompokkan per tanggal WIB dan urut per jam', () => {
   }
 });
 
-test('jam aman menggabungkan slot aman yang berurutan', () => {
-  const slots = [slot(6, 'Cerah Berawan'), slot(9, 'Berawan'), slot(12, 'Hujan Lebat'), slot(15, 'Hujan Ringan')];
-  assert.deepEqual(safeWindows(slots), [[6, 12], [15, 18]]);
-  assert.deepEqual(safeWindows([slot(6, 'Hujan Petir'), slot(9, 'Hujan Sedang')]), []);
-  assert.equal(safeWindows([slot(21, 'Cerah')]), null);
-});
-
 test('jam slot BMKG yang bergeser (05, 08, 11, 14, 17) tetap dihitung jam kerja', () => {
   const shifted = [
     slot(2, 'Hujan Lebat'), slot(5, 'Berawan'), slot(8, 'Cerah'), slot(11, 'Hujan Lebat'),
     slot(14, 'Berawan'), slot(17, 'Cerah'), slot(20, 'Hujan Petir'),
   ];
-  assert.deepEqual(safeWindows(shifted), [[6, 11], [14, 18]]);
+  assert.deepEqual(fieldSlots(shifted).map((s) => s.hour), [5, 8, 11, 14, 17]);
   assert.deepEqual(alertKeys(shifted), ['2026-11-14 11 hujan_lebat']);
 });
 
@@ -71,10 +64,4 @@ test('hujan sedang dan lebat baru jadi bahaya bila pasti; petir selalu', () => {
   assert.deepEqual(hazardsOf({ ...slot(12, 'Hujan Petir'), rainChance: 30 }), ['petir']);
   // Tanpa data peluang (Open-Meteo gagal), keterangan BMKG saja yang dipakai
   assert.deepEqual(hazardsOf(slot(12, 'Hujan Lebat')), ['hujan_lebat']);
-});
-
-test('saran: waktu menyemprot hanya saat tidak hujan, angin tenang, dan tidak disusul hujan', () => {
-  assert.deepEqual(sprayWindow([slot(6, 'Cerah', 5), slot(9, 'Cerah', 20), slot(12, 'Hujan Ringan'), slot(15, 'Cerah')]), [6, 9]);
-  assert.deepEqual(sprayWindow([slot(6, 'Cerah', 5), slot(9, 'Hujan Ringan'), slot(12, 'Cerah', 5), slot(15, 'Cerah', 5), slot(18, 'Cerah')]), [12, 18]);
-  assert.equal(sprayWindow([slot(6, 'Hujan Sedang'), slot(9, 'Hujan Petir'), slot(12, 'Hujan Ringan'), slot(15, 'Hujan Ringan')]), null);
 });

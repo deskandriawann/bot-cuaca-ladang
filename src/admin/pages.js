@@ -51,6 +51,9 @@ function morningNote() {
   if (status === 'terkirim') return flash('Bot sudah mengirim info cuaca hari ini ke grup. Tidak perlu dikirim lagi.', 'ok');
   if (status === 'gagal') return flash('Bot belum berhasil mengirim info cuaca hari ini. Kirim sendiri lewat tombol di bawah.', 'bad');
   if (status === 'mengirim') return flash('Bot sedang mengirim info cuaca. Tunggu sebentar, lalu muat ulang halaman ini.', 'warn');
+  if (state.morningEnabled === false) {
+    return flash('Info pagi otomatis sedang dimatikan. Kirim lewat tombol di bawah bila grup perlu info hari ini.', 'warn');
+  }
   if (isConnected() && state.groupJid && linkPhase().phase !== 'tenang') {
     return flash(`Bot akan mengirim sendiri ${nextMorningText()}. Kirim manual hanya bila bot tidak mengirim.`, 'warn');
   }

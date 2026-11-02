@@ -14,8 +14,9 @@ let lastCheckHour = null;
 async function tick() {
   if (!isConnected() || linkPhase().phase === 'tenang') return;
   const now = nowWib();
-  const { morningSentOn, groupJid } = getState();
-  if (!groupJid) return;
+  const { morningSentOn, groupJid, morningEnabled } = getState();
+  // Info pagi dimatikan pengurus: bot tidak mengirim apa pun sendiri, hanya menjawab pertanyaan
+  if (!groupJid || morningEnabled === false) return;
 
   if (morningSentOn !== now.date && morningDue(now)) {
     await sendMorning();

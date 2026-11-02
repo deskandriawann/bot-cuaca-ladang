@@ -1,4 +1,4 @@
-// Penilaian kondisi cuaca: hujan, petir, angin kencang, dan jam aman ke ladang.
+// Penilaian kondisi cuaca: hujan, petir, angin kencang, dan peluang hujan.
 import { config } from '../config.js';
 
 // Penilaian memakai teks keterangan BMKG (weather_desc), bukan kode angka: di API publik
@@ -27,9 +27,6 @@ const WORK_START = 6;
 const WORK_END = 18;
 export const SLOT_HOURS = 3;
 export const isFieldSlot = (slot) => slot.hour < WORK_END && slot.hour + SLOT_HOURS > WORK_START;
-
-/** Rentang jam dipotong ke waktu kerja: [5, 11] → [6, 11] */
-const clampWork = ([from, to]) => [Math.max(from, WORK_START), Math.min(to, WORK_END)];
 
 export const PERIODS = [
   { name: 'Pagi', from: 6, to: 12 },
@@ -114,47 +111,9 @@ export function hazardsOf(slot) {
 }
 
 export const hazardLabel = (type) => HAZARD_LABEL[type];
-export const isSafe = (slot) => hazardsOf(slot).length === 0;
 
 export function fieldSlots(slots) {
   return slots.filter(isFieldSlot);
-}
-
-/**
- * Rentang jam aman ke ladang dari slot BMKG, misalnya [[6, 12], [15, 18]], dipotong ke waktu kerja.
- * Mengembalikan null bila tidak ada slot jam kerja (misal sudah malam).
- */
-export function safeWindows(slots) {
-  const field = fieldSlots(slots);
-  if (field.length === 0) return null;
-  const windows = [];
-  for (const slot of field) {
-    if (!isSafe(slot)) continue;
-    const last = windows.at(-1);
-    if (last && last[1] === slot.hour) last[1] = slot.hour + SLOT_HOURS;
-    else windows.push([slot.hour, slot.hour + SLOT_HOURS]);
-  }
-  return windows.map(clampWork);
-}
-
-// Menyemprot pestisida sebaiknya saat angin tenang (umumnya di bawah sekitar 15 km/jam) dan tidak
-// disusul hujan, agar semprotan tidak terbawa angin atau tercuci hujan.
-const SPRAY_MAX_WIND_KMH = 15;
-
-/**
- * Rentang jam pertama yang baik untuk menyemprot, misalnya [6, 12]: slot jam kerja tanpa hujan dan bahaya,
- * angin di bawah SPRAY_MAX_WIND_KMH, dan slot sesudahnya tidak hujan. null bila tidak ada.
- */
-export function sprayWindow(slots) {
-  let window = null;
-  for (const slot of fieldSlots(slots)) {
-    const next = slots.find((s) => s.hour === slot.hour + SLOT_HOURS);
-    const good = !isRain(slot) && isSafe(slot) && slot.windKmh < SPRAY_MAX_WIND_KMH && !(next && isRain(next));
-    if (good && !window) window = [slot.hour, slot.hour + SLOT_HOURS];
-    else if (good && window[1] === slot.hour) window[1] = slot.hour + SLOT_HOURS;
-    else if (window) break;
-  }
-  return window && clampWork(window);
 }
 
 /** Slot dengan kondisi terburuk; bila sama buruknya, yang paling awal. */

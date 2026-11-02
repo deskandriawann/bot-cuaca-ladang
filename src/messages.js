@@ -1,16 +1,15 @@
 // Penyusunan teks pesan WhatsApp. *teks* = cetak tebal di WhatsApp.
 //
-// Pembaca utama berusia 50-60 tahun, jadi: yang terpenting (jam aman ke ladang) ditaruh paling atas,
+// Pembaca utama berusia 50-60 tahun, jadi: yang terpenting (peringatan hujan) ditaruh paling atas,
 // setiap baris diawali satu ikon agar mudah dipindai, kalimat pendek, dan jam ditulis "pukul 15.00".
 import { config } from './config.js';
 import {
-  PERIODS, fieldSlots, safeWindows, sprayWindow, worstSlot, strongestWind, tempRange, hazardsOf, isSafe,
+  PERIODS, fieldSlots, worstSlot, strongestWind, tempRange, hazardsOf,
   hazardLabel, condition, isRain, isThunder, isSureRain, isRainWarning, windFromText, windFromDegrees, wmoText,
 } from './weather/analysis.js';
 import { HARI, BULAN, addDays, weekdayIndex, longDate, shortDate, hourLabel, pad } from './time.js';
 
 const OM_NOTE = 'Prakiraan lebih dari 3 hari hanya gambaran umum, bukan dari BMKG. Cek lagi mendekati harinya.';
-const THUNDER_ADVICE = '⚡ Saat ada petir, segera tinggalkan ladang dan jauhi pohon tinggi.';
 
 const WEATHER_EMOJI = {
   petir: '⛈️',
@@ -68,10 +67,6 @@ function chanceText(slots) {
 function windText(slot) {
   const from = windFromText(slot.windFrom);
   return `${Math.round(slot.windKmh)} km/jam${from ? ` dari ${from}` : ''}`;
-}
-
-function windowsText(windows) {
-  return joinList(windows.map(([a, b]) => `${hourLabel(a)}-${hourLabel(b)}`));
 }
 
 /** 0 → 'hari ini', 1 → 'besok', 2 → 'lusa', 5 → '5 hari lagi' */
@@ -139,15 +134,6 @@ function nextTip(dayIndex) {
   return `💬 Cuaca 10 hari ke depan? Ketik *halo ${n} 10 hari*`;
 }
 
-/** Judul jam aman: ✅ aman sepanjang jam kerja, ⚠️ sebagian, ⛔ tidak ada. Kosong bila tidak ada slot jam kerja. */
-function safeHeadline(slots, label = 'JAM AMAN KE LADANG') {
-  const windows = safeWindows(slots);
-  if (!windows) return [];
-  if (windows.length === 0) return [`⛔ *${label}*`, '*Tidak ada, sebaiknya tunda ke ladang*'];
-  const full = fieldSlots(slots).every(isSafe);
-  return [`${full ? '✅' : '⚠️'} *${label}*`, `*${windowsText(windows)}*`];
-}
-
 /**
  * Peringatan tambahan untuk hujan sedang, lebat, atau hujan petir yang pasti.
  * Hujan ringan dan hujan yang belum pasti tidak masuk sini, cukup jadi info di conditionLines.
@@ -181,33 +167,6 @@ function conditionLines(slots) {
   ];
 }
 
-/** Saran praktis dari data: kapan selesai di ladang, keselamatan saat petir, dan waktu menyemprot. */
-function adviceLines(slots) {
-  const field = fieldSlots(slots);
-  if (field.length === 0) return [];
-  const lines = [];
-  // Selaras dengan jam aman: hanya petir, dan hujan sedang atau lebat yang pasti, membuat pekerjaan perlu selesai lebih awal
-  const heavy = field.filter((s) => isThunder(s) || isRainWarning(s));
-  const light = field.filter((s) => isRain(s) && !heavy.includes(s));
-  if (field.some(isThunder)) lines.push(THUNDER_ADVICE);
-  if (heavy.length > 0) {
-    lines.push(heavy[0].hour > field[0].hour
-      ? `🕐 Usahakan pekerjaan di ladang selesai sebelum pukul ${hourLabel(heavy[0].hour)}.`
-      : '🧥 Hujan cukup deras, sebaiknya tunda ke ladang.');
-  } else if (light.length > 0) {
-    lines.push(`🧥 Bawa jas hujan, ada kemungkinan hujan sekitar pukul ${timesText(light)}.`);
-  }
-  if (field.some((s) => s.windKmh >= config.strongWindKmh)) {
-    lines.push('💨 Angin kencang: hati-hati di tempat terbuka dan amankan peralatan.');
-  }
-  if (lines.length === 0) lines.push('👍 Cuaca mendukung untuk bekerja di ladang.');
-  const spray = sprayWindow(slots);
-  lines.push(spray
-    ? `💦 Waktu menyemprot yang baik: ${hourLabel(spray[0])}-${hourLabel(spray[1])}.`
-    : '💦 Kurang cocok untuk menyemprot (hujan atau angin).');
-  return ['💡 *Saran*', ...lines];
-}
-
 /** Salam sesuai jam: ringkasan biasanya pagi, tetapi jam kirimnya bisa diubah pengurus. */
 export function greeting(hour) {
   if (hour < 11) return 'Selamat pagi';
@@ -235,11 +194,9 @@ export function morningMessage(bmkg, date, hour = 5) {
     `📍 ${bmkg.place}`,
     `📅 ${longDate(date)}`,
     '',
-    ...block(safeHeadline(slots)),
     ...block(rainWarningLines(slots)),
     ...block(periods),
     ...block(conditionLines(slots)),
-    ...block(adviceLines(slots)),
     ...footer('bmkg', slots, morningTip(date)),
   ].join('\n');
 }
@@ -257,13 +214,11 @@ export function dayDetailMessage(bmkg, date, dayIndex) {
     `📍 ${bmkg.place}`,
     `📅 ${longDate(date)}`,
     '',
-    ...block(safeHeadline(slots)),
     ...block(rainWarningLines(slots)),
     ...block(hours),
     ...conditionLines(slots),
     `💧 Kelembapan ${rangeText([Math.min(...humidity), Math.max(...humidity)], '%')}`,
     '',
-    ...block(adviceLines(slots)),
     ...footer('bmkg', slots, nextTip(dayIndex)),
   ].join('\n');
 }
@@ -295,11 +250,7 @@ export function outlookMessage(bmkg, om, dates) {
       const field = fieldSlots(slots);
       const scope = field.length > 0 ? field : slots;
       const worst = worstSlot(scope);
-      const windows = safeWindows(slots);
-      let safe = '';
-      if (windows?.length) safe = `, aman pukul ${joinList(windows.map(([a, b]) => `${pad(a)}-${pad(b)}`))}`;
-      else if (windows) safe = ', tidak aman ke ladang';
-      lines.push(`${slotEmoji(worst)} ${shortDate(date)}: ${sentence(worst.desc)}, ${tempText(tempRange(scope))}${safe}`);
+      lines.push(`${slotEmoji(worst)} ${shortDate(date)}: ${sentence(worst.desc)}, ${tempText(tempRange(scope))}`);
     }
     lines.push('');
   }
@@ -340,8 +291,6 @@ export function updateMessage(place, remaining, newKeys, nowHhmm) {
     '',
     'BMKG memperbarui prakiraan hari ini:',
     ...block(items),
-    ...block(safeHeadline(remaining, 'JAM AMAN TERSISA')),
-    ...block(newKeys.some((key) => key.endsWith(' petir')) ? [THUNDER_ADVICE] : []),
     '📡 Sumber: BMKG',
   ].join('\n');
 }
@@ -359,8 +308,6 @@ export function rainSoonMessage(place, slot, nowHour, nowHhmm) {
     `🕐 Pukul ${nowHhmm} WIB`,
     '',
     `${sentence(slot.desc)} diperkirakan ${started ? 'turun sejak' : 'mulai'} sekitar pukul ${hourLabel(slot.hour)}${chanceText(slot)}.`,
-    started ? '🏠 Bila masih di ladang, segera berteduh.' : '🏠 Segera selesaikan pekerjaan di ladang dan cari tempat berteduh.',
-    ...(isThunder(slot) ? [THUNDER_ADVICE] : []),
     '',
     '📡 Sumber: BMKG',
   ].join('\n');

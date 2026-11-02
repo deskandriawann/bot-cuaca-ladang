@@ -6,9 +6,10 @@ import { bmkg, tomorrow, slot } from './helpers.js';
 
 test('ringkasan pagi memuat bagian penting', () => {
   const text = morningMessage(bmkg, tomorrow);
-  for (const part of ['Selamat pagi', 'JAM AMAN KE LADANG', 'Pagi (06-12)', '☔', '⚡', '💨 Angin', '💡 *Saran*', '💦', 'Sumber: BMKG']) {
+  for (const part of ['Selamat pagi', 'Pagi (06-12)', '☔', '⚡', '💨 Angin', 'Sumber: BMKG']) {
     assert.ok(text.includes(part), `tidak ada "${part}"\n${text}`);
   }
+  assert.doesNotMatch(text, /JAM AMAN/);
 });
 
 test('salam ringkasan mengikuti jam kirim', () => {
@@ -18,13 +19,18 @@ test('salam ringkasan mengikuti jam kirim', () => {
   assert.match(morningMessage(bmkg, tomorrow, 19), /^Selamat malam, /m);
 });
 
-test('jam aman: ✅ sepanjang hari, ⚠️ sebagian, ⛔ tidak ada', () => {
+test('pesan hanya berisi informasi, tanpa saran', () => {
   const day = (...descs) => ({ place: 'Selopamioro', days: { '2026-11-14': descs.map((d, i) => slot(6 + 3 * i, d)) } });
-  assert.match(morningMessage(day('Cerah', 'Cerah', 'Berawan', 'Cerah'), '2026-11-14'), /✅ \*JAM AMAN KE LADANG\*\n\*06\.00-18\.00\*/);
-  assert.match(morningMessage(day('Cerah', 'Cerah', 'Hujan Lebat', 'Cerah'), '2026-11-14'), /⚠️ \*JAM AMAN KE LADANG\*/);
-  const none = morningMessage(day('Hujan Petir', 'Hujan Sedang', 'Hujan Lebat', 'Hujan Sedang'), '2026-11-14');
-  assert.match(none, /⛔ \*JAM AMAN KE LADANG\*/);
-  assert.match(none, /jauhi pohon tinggi/);
+  const stormy = morningMessage(day('Hujan Petir', 'Hujan Sedang', 'Hujan Lebat', 'Hujan Sedang'), '2026-11-14');
+  assert.match(stormy, /⚡ Petir sekitar pukul 06\.00/);
+  const heavy = { ...slot(15, 'Hujan Lebat'), rainChance: 85 };
+  const texts = [
+    stormy,
+    morningMessage(day('Cerah', 'Cerah', 'Berawan', 'Cerah'), '2026-11-14'),
+    updateMessage('Selopamioro', [slot(12, 'Hujan Petir')], ['2026-11-14 12 petir'], '10.05'),
+    rainSoonMessage('Selopamioro', heavy, 14, '14.10'),
+  ];
+  for (const text of texts) assert.doesNotMatch(text, /Saran|berteduh|jauhi pohon|menyemprot|jas hujan|tunda ke ladang/);
 });
 
 test('hujan belum pasti cukup info; hujan sedang atau lebat yang pasti diberi peringatan potensi hujan', () => {
@@ -40,18 +46,16 @@ test('hujan belum pasti cukup info; hujan sedang atau lebat yang pasti diberi pe
   const unsure = morningMessage(day(50), '2026-11-14');
   assert.doesNotMatch(unsure, /POTENSI HUJAN/);
   assert.match(unsure, /☔ Mungkin hujan sedang sekitar pukul 12\.00 dan 15\.00 \(peluang 50-90%\)/);
-  assert.match(unsure, /✅ \*JAM AMAN KE LADANG\*/);
 
   const sure = morningMessage(day(85), '2026-11-14');
   assert.match(sure, /⚠️ \*POTENSI HUJAN\*\n🌧️ \*Hujan sedang\* sekitar pukul 15\.00 \(peluang 85%\)/);
   assert.match(sure, /☔ Hujan ringan sekitar pukul 12\.00 \(peluang 90%\)/);
-  assert.match(sure, /selesai sebelum pukul 15\.00/);
 });
 
 test('pemberitahuan perubahan menyebut bahaya baru', () => {
   const text = updateMessage('Selopamioro', [slot(12, 'Hujan Lebat'), slot(15, 'Cerah')], ['2026-11-14 12 hujan_lebat'], '10.05');
   assert.match(text, /Hujan lebat sekitar pukul 12\.00/);
-  assert.match(text, /JAM AMAN TERSISA\*\n\*15\.00-18\.00\*/);
+  assert.doesNotMatch(text, /JAM AMAN/);
 });
 
 test('pengingat hujan lebat: menjelang turun dan sudah masuk jamnya', () => {

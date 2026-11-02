@@ -4,7 +4,7 @@ import { addDays, minuteLabel, nowWib } from '../time.js';
 import { getState } from '../store.js';
 import { greeting } from '../messages.js';
 import { wa, isConnected, hasLinkedSession } from '../whatsapp/connection.js';
-import { linkPhase, dailyLimit } from '../bot/send.js';
+import { linkPhase, sendLimits } from '../bot/send.js';
 import { SCHEDULE_EARLIEST, SCHEDULE_LATEST, defaultMorningBase, morningBase, morningRange } from '../bot/schedule.js';
 import { esc, ICONS, flash, hero, page, tiles } from './layout.js';
 import { STATUS_COLOR, logEntry, morningTime, nextMorningText, phoneText, statusOf, wibText } from './format.js';
@@ -26,17 +26,20 @@ export const testKey = (state) => `${state.linkedAt}|${state.groupJid}`;
 
 /** Pesan perkenalan yang dikirim sebagai pesan percobaan. */
 export function testText() {
+  const morning = getState().morningEnabled === false ? []
+    : [`🌾 Setiap pagi pukul ${minuteLabel(morningBase())} WIB, bot mengirim info cuaca hari itu.`];
   return [
     `✅ *Bot info cuaca ${config.placeName} sudah aktif di grup ini.*`,
     '',
-    `🌾 Setiap pagi pukul ${minuteLabel(morningBase())} WIB, bot mengirim info cuaca dan jam aman ke ladang.`,
+    ...morning,
     `❓ Untuk bertanya, ketik: *halo ${config.botName} besok* (cara lain: *halo ${config.botName} menu*)`,
   ].join('\n');
 }
 
-/** Kotak "Info cuaca pagi". info: { morning: status hari ini, phase, group }. */
-function morningTile({ morning, phase, group }) {
+/** Kotak "Info cuaca pagi". info: { morning: status hari ini, phase, group, enabled }. */
+function morningTile({ morning, phase, group, enabled }) {
   const [value, sub, color] = morning === 'terkirim' ? ['Terkirim ✓', 'Sudah masuk grup hari ini', 'green']
+    : !enabled ? ['Dimatikan', 'Bot hanya menjawab pertanyaan', 'slate']
     : morning === 'gagal' ? ['Belum terkirim', 'Kirim lewat tombol di bawah', 'red']
       : morning === 'mengirim' ? ['Sedang dikirim', 'Tunggu sebentar', 'amber']
         : !group || phase === 'tenang' ? ['Belum aktif', 'Selesaikan langkah di bawah', 'amber']
@@ -96,16 +99,25 @@ ${!done[0] ? '<p class="muted">Bisa dilakukan setelah langkah 1 selesai.</p>'
 </ol></section>`;
 }
 
-/** Jam kirim info cuaca pagi, diatur pengurus. Berlaku langsung, tanpa menyalakan ulang bot. */
+/** Info cuaca setiap pagi: nyala/mati dan jam kirimnya, diatur pengurus. Berlaku langsung, tanpa menyalakan ulang bot. */
 function scheduleCard(state) {
+  const on = state.morningEnabled !== false;
+  const head = `<section class="card"><h2>${ICONS.clock}Info cuaca setiap pagi</h2>`;
+  const toggle = `<form method="post" action="/info-pagi"><input type="hidden" name="aktif" value="${on ? '0' : '1'}">
+${on ? '<button class="alt" type="submit">Matikan info pagi</button>' : `<button type="submit">${ICONS.check}Nyalakan info pagi</button>`}</form>`;
+  if (!on) {
+    return `${head}
+<p><strong>Mati.</strong> Bot tidak mengirim apa pun sendiri, termasuk peringatan cuaca. Bot tetap menjawab bila ditanya <strong>halo ${esc(config.botName)} …</strong> di grup.</p>
+${toggle}</section>`;
+  }
   const fromEnv = defaultMorningBase();
   const asInput = (minutes) => minuteLabel(minutes).replace('.', ':');
   const reset = state.morningSchedule && morningBase() !== fromEnv
     ? `<form method="post" action="/jam-pagi"><input type="hidden" name="jam" value="bawaan">
 <button class="alt" type="submit">Kembali ke jam awal (${minuteLabel(fromEnv)})</button></form>`
     : '';
-  return `<section class="card"><h2>${ICONS.clock}Jam kirim info cuaca</h2>
-<p>Setiap hari sekitar pukul <strong>${morningRange()} WIB</strong>.</p>
+  return `${head}
+<p><strong>Nyala:</strong> dikirim setiap hari sekitar pukul <strong>${morningRange()} WIB</strong>.</p>
 <form method="post" action="/jam-pagi">
 <label for="jam">Pilih jam baru</label>
 <div class="actions"><input id="jam" type="time" name="jam" value="${asInput(morningBase())}"
@@ -113,13 +125,20 @@ function scheduleCard(state) {
 <button type="submit">${ICONS.check}Simpan jam</button></div>
 </form>
 ${reset}
-<p class="muted">Saran: pukul 05.00-06.00, sebelum berangkat ke ladang. Supaya terasa alami, jam kirimnya bergeser beberapa menit setiap hari. Bila info hari ini sudah terkirim, jam baru berlaku mulai besok.</p></section>`;
+<p class="muted">Saran: pukul 05.00-06.00 WIB.</p>
+<p class="muted">Cukup menjawab pertanyaan saja? Matikan info pagi; bot tetap menjawab <strong>halo ${esc(config.botName)} …</strong> di grup.</p>
+${toggle}</section>`;
 }
 
 /** Setelah semua langkah selesai: info cuaca pagi, jam kirim, dan tombol ganti nomor atau grup. */
 function readyCards(state, today) {
   const status = state.morningSentOn === today ? state.morningStatus : null;
-  const morning = status === 'terkirim'
+  const on = state.morningEnabled !== false;
+  const morning = !on && status !== 'terkirim'
+    ? `<p><strong>Info pagi sedang dimatikan</strong>, jadi bot tidak mengirim sendiri.</p>
+<p>Mau mengirim info cuaca hari ini sekali saja? Tekan tombol ini.</p>
+<form method="post" action="/kirim-pagi"><button type="submit">${ICONS.send}Kirim info cuaca sekarang</button></form>`
+    : status === 'terkirim'
     ? `<p class="ok"><strong>${ICONS.check} Info cuaca hari ini sudah masuk ke grup.</strong></p>
 <p class="muted">Besok bot mengirim lagi sekitar pukul ${morningTime(addDays(today, 1))} WIB.</p>`
     : status === 'mengirim'
@@ -129,9 +148,9 @@ function readyCards(state, today) {
 <p>Belum masuk ke grup sampai pukul ${minuteLabel(morningBase() + 30)}? Tekan tombol ini, bot langsung mengirim. Tidak perlu ditekan setiap hari.</p>
 <form method="post" action="/kirim-pagi"><button type="submit">${ICONS.send}Kirim info cuaca sekarang</button></form>
 <p class="muted">Masih belum bisa? Kirim sendiri lewat tombol <strong>Buka teks cuaca hari ini</strong> di bagian atas.</p>`;
-  const healthy = isConnected()
-    ? `<div class="note ok">${ICONS.check} Semua berjalan lancar. Bot mengirim info cuaca ke grup <strong>${esc(state.groupName)}</strong> setiap pagi, tanpa perlu ditekan.</div>`
-    : '';
+  const healthy = !isConnected() ? ''
+    : on ? `<div class="note ok">${ICONS.check} Semua berjalan lancar. Bot mengirim info cuaca ke grup <strong>${esc(state.groupName)}</strong> setiap pagi, tanpa perlu ditekan.</div>`
+      : `<div class="note ok">${ICONS.check} Semua berjalan lancar. Info pagi dimatikan: bot hanya menjawab pertanyaan di grup <strong>${esc(state.groupName)}</strong>.</div>`;
   return `${healthy}
 <section class="card"><h2>${ICONS.sun}Info cuaca pagi ini</h2>${morning}</section>
 ${scheduleCard(state)}
@@ -164,11 +183,12 @@ export function dashboard(message, main = null) {
   const live = !manualMode
     ? {
       status: wa.status, phone: wa.phone ?? state.phone, sent: state.sent?.date === today ? state.sent.count : 0,
-      limit: dailyLimit(phase), group: state.groupName, morning: state.morningSentOn === today ? state.morningStatus : null, phase,
+      ...sendLimits(phase), group: state.groupName, morning: state.morningSentOn === today ? state.morningStatus : null, phase,
+      enabled: state.morningEnabled !== false,
     }
     : main?.ok ? {
-      status: main.status, phone: main.phone, sent: main.sentToday, limit: main.limit, group: main.groupName,
-      morning: main.morningStatus, phase: main.phase,
+      status: main.status, phone: main.phone, sent: main.sentToday, perDay: main.perDay, perHour: main.perHour, group: main.groupName,
+      morning: main.morningStatus, phase: main.phase, enabled: main.morningEnabled !== false,
     } : null;
   const liveStatus = live && statusOf(live.status);
   const stats = tiles([
@@ -182,7 +202,7 @@ export function dashboard(message, main = null) {
       color: 'blue', icon: ICONS.message, label: 'Pesan hari ini',
       value: live ? String(live.sent) : '–',
       sub: !live ? 'Dikirim lewat WhatsApp sendiri'
-        : live.phase === 'pemanasan' ? `Nomor baru: batas sementara ${live.limit} per hari` : `Batas aman ${live.limit} pesan per hari`,
+        : live.phase === 'pemanasan' ? `Nomor baru: maks ${live.perHour} pesan per jam` : `Batas aman ${live.perDay} pesan per hari`,
     },
     {
       color: 'violet', icon: ICONS.users, label: 'Grup penerima',

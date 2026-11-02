@@ -59,6 +59,10 @@ test('halaman pengelola: keamanan, pesan bertanda tangan, jam kirim, dan kunci m
     assert.equal(css.status, 200);
     assert.match(css.headers.get('content-type'), /text\/css/);
     assert.match(css.headers.get('cache-control'), /immutable/);
+    // Gambar dan video unit juga bersidik, agar video spanduk tidak diunduh ulang setiap berganti video
+    const iconUrl = /src="(\/aset\/icon\?v=\w+)"/.exec(loginHtml)[1];
+    assert.match((await fetch(base + iconUrl)).headers.get('cache-control'), /immutable/);
+    assert.equal((await fetch(`${base}/aset/icon?v=lama`)).headers.get('cache-control'), 'no-cache');
     // Upaya membaca berkas lain lewat '../' ditolak (%2F agar tidak dirapikan fetch sebelum sampai ke server)
     assert.equal((await fetch(`${base}/static/..%2F..%2Fconfig.js`)).status, 404);
     assert.equal((await fetch(`${base}/aset/..%2F..%2F.env`)).status, 404);
@@ -108,6 +112,20 @@ test('halaman pengelola: keamanan, pesan bertanda tangan, jam kirim, dan kunci m
     assert.deepEqual(getState().morningSchedule, { hour: 6, minute: 30 });
     await saveTime('bawaan');
     assert.equal(getState().morningSchedule, null);
+
+    // Info pagi bisa dimatikan (bot hanya menjawab pertanyaan) dan dinyalakan lagi
+    const toggle = async (aktif) => {
+      const saved = await form('/info-pagi', { aktif }, { cookie });
+      return (await fetch(base + saved.headers.get('location'), { headers: { cookie } })).text();
+    };
+    const off = await toggle('0');
+    assert.equal(getState().morningEnabled, false);
+    assert.match(off, /Info cuaca pagi dimatikan/);
+    assert.match(off, /Dimatikan/);
+    assert.match(off, /Nyalakan info pagi/);
+    const on = await toggle('1');
+    assert.equal(getState().morningEnabled, true);
+    assert.match(on, /Matikan info pagi/);
 
     // Halaman kirim manual: tombol salin lewat atribut data, bukan onclick
     const manual = await (await fetch(`${base}/kirim?jenis=besok`, { headers: { cookie } })).text();

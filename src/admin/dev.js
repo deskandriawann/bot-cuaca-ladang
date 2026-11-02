@@ -8,7 +8,7 @@ import { config } from '../config.js';
 import { nowWib } from '../time.js';
 import { getState, addLog } from '../store.js';
 import { wa } from '../whatsapp/connection.js';
-import { botSend, linkPhase, dailyLimit } from '../bot/send.js';
+import { botSend, linkPhase, sendLimits } from '../bot/send.js';
 import { readJson, sendJson } from './http.js';
 import { fromLoopback } from './security.js';
 import { esc } from './layout.js';
@@ -61,8 +61,9 @@ export async function apiRoute(req, res, url) {
       error: wa.error,
       groupName: state.groupName,
       sentToday: state.sent?.date === today ? state.sent.count : 0,
-      limit: dailyLimit(phase),
+      ...sendLimits(phase),
       morningStatus: state.morningSentOn === today ? state.morningStatus : null,
+      morningEnabled: state.morningEnabled !== false,
       phase,
     });
   }
@@ -130,7 +131,7 @@ export function devCard(main) {
 <p>Bot utama: <strong class="${main.status === 'tersambung' ? 'ok' : 'warn'}">${esc(main.statusText)}</strong><br>
 Nomor: <strong>${esc(phoneText(main.phone) ?? '-')}</strong><br>
 Grup penerima: <strong>${esc(main.groupName ?? 'belum dipilih')}</strong><br>
-Pesan hari ini: ${esc(main.sentToday)} dari batas ${esc(main.limit)}</p>
+Pesan hari ini: ${esc(main.sentToday)} dari batas ${esc(main.perDay)} (maks ${esc(main.perHour)} per jam)</p>
 ${main.groupName ? '' : '<p class="warn">Pilih grup penerima dulu di halaman bot utama.</p>'}
 <a class="btn" href="/kirim">Pilih pesan untuk diuji</a></section>`;
 }

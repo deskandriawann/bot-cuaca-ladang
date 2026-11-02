@@ -28,7 +28,9 @@ Di halaman yang sama ada pilihan **Cuaca besok**, **Cuaca lusa**, dan **10 hari 
 
 ## Mengganti jam kirim ringkasan
 
-Bawaannya sekitar pukul 05.00-05.14. Untuk menggantinya, buka halaman pengelola, cari kotak **Jam kirim info cuaca**, pilih jamnya, lalu ketuk **Simpan jam**. Berlaku langsung, bot tidak perlu dimatikan. Supaya terasa alami, jamnya bergeser beberapa menit setiap hari (sampai 14 menit). Bila ringkasan hari ini sudah terkirim, jam baru berlaku mulai besok. Tombol **Kembali ke jam awal** mengembalikannya ke pukul 05.00.
+Bila grup cukup bertanya sendiri, info pagi bisa dimatikan: di kotak **Info cuaca setiap pagi**, ketuk **Matikan info pagi**. Bot lalu tidak mengirim apa pun sendiri dan hanya menjawab bila ditanya "halo tani ...". Ketuk **Nyalakan info pagi** untuk menyalakannya lagi.
+
+Bawaannya sekitar pukul 05.00-05.14. Untuk menggantinya, buka halaman pengelola, cari kotak **Info cuaca setiap pagi**, pilih jamnya, lalu ketuk **Simpan jam**. Berlaku langsung, bot tidak perlu dimatikan. Supaya terasa alami, jamnya bergeser beberapa menit setiap hari (sampai 14 menit). Bila ringkasan hari ini sudah terkirim, jam baru berlaku mulai besok. Tombol **Kembali ke jam awal** mengembalikannya ke pukul 05.00.
 
 ## Menyiapkan nomor baru (pertama kali atau bila diblokir)
 
@@ -53,7 +55,7 @@ Butuh laptop atau HP lain untuk menampilkan QR. Halaman pengelola menampilkan ko
 3. **Tunggu masa tenang 24 jam.** Nomor yang baru tertaut tidak boleh mengirim apa pun selama 24 jam. Tidak perlu melakukan apa-apa; halaman menuliskan jam selesainya.
 4. **Kirim pesan percobaan.** Gunanya memastikan bot benar-benar bisa mengirim ke grup. Ketuk **Kirim pesan percobaan**, lalu buka grup di WhatsApp dan pastikan pesan perkenalan dari bot masuk. Tombol ini hanya muncul saat menyambungkan nomor baru atau setelah grup penerima diganti.
 
-Setelah keempat langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Selama **7 hari masa pemanasan** setelah masa tenang, bot hanya mengirim ringkasan pagi dan sedikit jawaban; pakai **Kirim manual** bila perlu. Setelah pemanasan, semua fitur berjalan.
+Setelah keempat langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Selama **7 hari masa pemanasan** setelah masa tenang, bot mengirim paling banyak 3 pesan per jam (termasuk ringkasan pagi) dan belum mengirim peringatan mendadak; pertanyaan di atas batas itu tidak dijawab dulu dan tercatat di **Kegiatan bot terbaru**. Setelah pemanasan, semua fitur berjalan.
 
 Nomor bot dan grup tujuan bisa diganti kapan saja lewat tombol **Ganti nomor bot** dan **Ganti grup tujuan** di kotak **Pengaturan bot**. Bila nomornya berbeda, grup tujuan perlu dipilih lagi.
 

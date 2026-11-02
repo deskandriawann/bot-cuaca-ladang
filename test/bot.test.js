@@ -6,7 +6,7 @@ import { morningMessage } from '../src/messages.js';
 import { updateState } from '../src/store.js';
 import { nowWib } from '../src/time.js';
 import { answer } from '../src/bot/replies.js';
-import { botSend, linkPhase, dailyLimit } from '../src/bot/send.js';
+import { botSend, limitReason, linkPhase, sendLimits } from '../src/bot/send.js';
 import { pendingAlerts } from '../src/bot/alerts.js';
 import { morningAt, morningDue, parseScheduleTime, stableJitter } from '../src/bot/schedule.js';
 import { bmkg, om, today, tomorrow, dayAfter, offline, sources, slot } from './helpers.js';
@@ -63,7 +63,23 @@ test('tahap nomor: tenang, pemanasan, lalu normal', () => {
   assert.equal(linkPhase(new Date(linked).toISOString(), linked + 1 * hour).phase, 'tenang');
   assert.equal(linkPhase(new Date(linked).toISOString(), linked + 25 * hour).phase, 'pemanasan');
   assert.equal(linkPhase(new Date(linked).toISOString(), linked + (24 + 7 * 24 + 1) * hour).phase, 'normal');
-  assert.ok(dailyLimit('pemanasan') < dailyLimit('normal'));
+  assert.ok(sendLimits('pemanasan').perHour < sendLimits('normal').perHour);
+});
+
+test('batas kirim per jam (lebih ketat saat pemanasan) dan per hari', () => {
+  const now = Date.parse('2026-11-02T05:00:00Z'); // 12.00 WIB
+  const minutesAgo = (m) => now - m * 60_000;
+  const today = { date: '2026-11-02', count: 3 };
+
+  // Pemanasan: 3 pesan dalam 1 jam terakhir → tunggu sampai pesan tertua lewat 1 jam (12.50 WIB)
+  const busy = { sent: today, recentSends: [minutesAgo(10), minutesAgo(5), minutesAgo(1)] };
+  assert.match(limitReason(busy, 'pemanasan', now), /3 pesan dalam 1 jam terakhir\. Bisa mengirim lagi pukul 12\.50 WIB/);
+  // Pesan yang sudah lewat 1 jam tidak dihitung: pagi yang ramai tidak membuat bot diam sampai besok
+  assert.equal(limitReason({ sent: today, recentSends: [minutesAgo(400), minutesAgo(300), minutesAgo(61)] }, 'pemanasan', now), null);
+  // Setelah pemanasan batas per jam lebih longgar
+  assert.equal(limitReason(busy, 'normal', now), null);
+  // Batas harian tetap berlaku
+  assert.match(limitReason({ sent: { date: '2026-11-02', count: 40 }, recentSends: [] }, 'normal', now), /sudah mengirim 40 pesan/);
 });
 
 test('bot menolak mengirim ke selain grup penerima, tanpa menghitung pesan', async () => {
