@@ -82,6 +82,18 @@ function linkLines() {
 /** Baris-baris diikuti satu baris kosong, atau tidak sama sekali bila kosong. */
 const block = (lines) => (lines.length > 0 ? [...lines, ''] : []);
 
+const lastVariant = new Map(); // jenis kalimat → urutan pilihan terakhir
+
+/** Satu kalimat acak, tidak sama dengan pilihan sebelumnya untuk jenis yang sama, agar jawaban bot tidak monoton. */
+function vary(kind, options) {
+  const fresh = options.filter((_, i) => options.length === 1 || i !== lastVariant.get(kind));
+  const choice = fresh[Math.floor(Math.random() * fresh.length)];
+  lastVariant.set(kind, options.indexOf(choice));
+  return choice;
+}
+
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
 /** Asal angka peluang hujan (BMKG tidak memberinya), atau null bila tidak ada. */
 function chanceSource(slots) {
   const models = Math.max(0, ...slots.map((s) => Object.keys(s.rainModels ?? {}).length));
@@ -335,8 +347,13 @@ export function helpMessage(today) {
 }
 
 export function tooFarMessage(today) {
+  const last = longDate(addDays(today, 9));
   return [
-    `🙏 Maaf, prakiraan hanya tersedia sampai 10 hari ke depan (sampai ${longDate(addDays(today, 9))}).`,
+    vary('terlalu-jauh', [
+      `🙏 Maaf, prakiraan hanya tersedia sampai 10 hari ke depan (sampai ${last}).`,
+      `🙏 Hari itu masih terlalu jauh. Prakiraan baru tersedia sampai ${last}.`,
+      `🙏 Mohon maaf, bot hanya bisa melihat sampai 10 hari ke depan, yaitu sampai ${last}.`,
+    ]),
     '',
     `💬 Lihat 10 hari ke depan: ketik *halo ${config.botName} 10 hari*`,
   ].join('\n');
@@ -345,7 +362,11 @@ export function tooFarMessage(today) {
 export function pastMessage() {
   const n = config.botName;
   return [
-    '🙏 Maaf, bot hanya punya prakiraan dari hari ini sampai 10 hari ke depan, bukan untuk hari yang sudah lewat.',
+    vary('sudah-lewat', [
+      '🙏 Maaf, bot hanya punya prakiraan dari hari ini sampai 10 hari ke depan, bukan untuk hari yang sudah lewat.',
+      '🙏 Untuk hari yang sudah lewat, bot tidak punya datanya. Yang tersedia hari ini sampai 10 hari ke depan.',
+      '🙏 Mohon maaf, hari yang sudah lewat tidak ada prakiraannya. Bot hanya melihat hari ini sampai 10 hari ke depan.',
+    ]),
     '',
     `💬 Cuaca hari ini: ketik *halo ${n}*`,
     `💬 Cuaca besok: ketik *halo ${n} besok*`,
@@ -353,11 +374,67 @@ export function pastMessage() {
 }
 
 export function unknownMessage(today) {
-  return `🤔 Maaf, bot belum paham pertanyaannya.\n\n${helpMessage(today)}`;
+  const opening = vary('belum-paham', [
+    '🤔 Maaf, bot belum paham pertanyaannya.',
+    '🙏 Maaf, bot belum mengerti maksudnya.',
+    '🤔 Pertanyaannya belum dikenali bot.',
+  ]);
+  return `${opening}\n\n${helpMessage(today)}`;
+}
+
+/** Pertanyaan tidak dikenali, padahal cara bertanya baru saja dikirim (pukul hhmm): cukup contoh singkat. */
+export function notUnderstoodAgainMessage(today, hhmm) {
+  const n = config.botName;
+  const { weekday, day } = examples(today);
+  return vary('belum-paham-lagi', [
+    `🤔 Maaf, bot belum paham pertanyaannya. Sebut saja harinya, misalnya *halo ${n} besok* atau *halo ${n} ${weekday}*.`,
+    `🙏 Bot belum paham maksudnya, Bapak/Ibu. Cara bertanya sudah dikirim di atas pukul ${hhmm} WIB.`,
+    `🤔 Belum paham pertanyaannya. Coba misalnya *halo ${n} lusa* atau *halo ${n} tanggal ${day}*.`,
+    `🙏 Maaf, bot belum mengerti. Contoh yang bisa dijawab: *halo ${n} besok* atau *halo ${n} 10 hari*.`,
+  ]);
+}
+
+/** Cara bertanya diminta lagi, padahal baru saja dikirim (pukul hhmm). */
+export function helpAgainMessage(today, hhmm) {
+  const n = config.botName;
+  const { weekday } = examples(today);
+  return vary('menu-lagi', [
+    `👆 Cara bertanya ke bot sudah dikirim di atas pukul ${hhmm} WIB ya, Bapak/Ibu.`,
+    `🙏 Cara bertanya ada di pesan bot pukul ${hhmm} WIB di atas. Singkatnya: *halo ${n} besok*, *halo ${n} lusa*, atau *halo ${n} 10 hari*.`,
+    `📌 Cara bertanya baru saja dikirim pukul ${hhmm} WIB. Contoh singkat: *halo ${n} ${weekday}*.`,
+  ]);
+}
+
+/** Pokok pertanyaan cuaca satu hari, untuk jawaban "sudah dijawab": 'cuaca besok (Rabu, 4 November)'. */
+export function daySubject(date, dayIndex) {
+  return `cuaca ${whenText(dayIndex)} (${longDate(date).replace(/ \d{4}$/, '')})`;
+}
+
+export const OUTLOOK_SUBJECT = 'cuaca 10 hari ke depan';
+
+/**
+ * Pertanyaan yang sama baru saja dijawab (pukul hhmm): tunjuk jawaban sebelumnya,
+ * agar grup tidak dibanjiri pesan panjang yang isinya sama.
+ */
+export function alreadyAnsweredMessage(subject, hhmm) {
+  const Subject = capitalize(subject);
+  return vary('sudah-dijawab', [
+    `👆 ${Subject} sudah dijawab di atas pukul ${hhmm} WIB ya, Bapak/Ibu.`,
+    `🙏 Pertanyaan yang sama baru saja dijawab pukul ${hhmm} WIB: ${subject}. Silakan gulir ke atas.`,
+    `📌 Jawaban ${subject} ada di pesan bot pukul ${hhmm} WIB di atas. Datanya masih sama 🙏`,
+    `🙂 ${Subject} sudah dijawab tadi pukul ${hhmm} WIB, ada di atas ya.`,
+    `👆 Sudah dijawab pukul ${hhmm} WIB, Bapak/Ibu. Silakan lihat pesan bot di atas untuk ${subject}.`,
+  ]);
 }
 
 export function thanksMessage() {
-  return '🙏 Sama-sama, Bapak/Ibu. Semoga lancar di ladang 🌾';
+  return vary('terima-kasih', [
+    '🙏 Sama-sama, Bapak/Ibu. Semoga lancar di ladang 🌾',
+    '🙏 Sama-sama. Semoga panennya berhasil 🌾',
+    '😊 Sama-sama, Bapak/Ibu. Tanya cuaca lagi kapan saja ya 🌱',
+    '🙏 Terima kasih kembali. Semoga lancar kegiatannya hari ini 🌾',
+    `🌾 Sama-sama. Kapan pun perlu, ketik saja *halo ${config.botName}* 🙏`,
+  ]);
 }
 
 export function unavailableMessage() {

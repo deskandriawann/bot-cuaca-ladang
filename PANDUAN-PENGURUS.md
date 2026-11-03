@@ -55,7 +55,9 @@ Butuh laptop atau HP lain untuk menampilkan QR. Halaman pengelola menampilkan ko
 3. **Tunggu masa tenang 24 jam.** Nomor yang baru tertaut tidak boleh mengirim apa pun selama 24 jam. Tidak perlu melakukan apa-apa; halaman menuliskan jam selesainya.
 4. **Kirim pesan percobaan.** Gunanya memastikan bot benar-benar bisa mengirim ke grup. Ketuk **Kirim pesan percobaan**, lalu buka grup di WhatsApp dan pastikan pesan perkenalan dari bot masuk. Tombol ini hanya muncul saat menyambungkan nomor baru atau setelah grup penerima diganti.
 
-Setelah keempat langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Selama **7 hari masa pemanasan** setelah masa tenang, bot mengirim paling banyak 3 pesan per jam (termasuk ringkasan pagi) dan belum mengirim peringatan mendadak; pertanyaan di atas batas itu tidak dijawab dulu dan tercatat di **Kegiatan bot terbaru**. Setelah pemanasan, semua fitur berjalan.
+Setelah keempat langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Selama **7 hari masa pemanasan** setelah masa tenang, bot mengirim paling banyak 3 pesan per jam (termasuk ringkasan pagi) dan belum mengirim peringatan mendadak; pertanyaan di atas batas itu menunggu giliran dan dijawab begitu batasnya terbuka lagi (tercatat di **Kegiatan bot terbaru**). Setelah pemanasan, semua fitur berjalan.
+
+Setiap panggilan "halo tani" dijawab dengan membalas pesan penanya, satu per satu dan kapan saja. Bila grup sedang ramai, jawabannya berjarak sekitar setengah menit. Pertanyaan yang sama dalam 30 menit (misalnya tiga orang menanyakan cuaca besok) dijawab lengkap sekali, sisanya dijawab singkat "sudah dijawab di atas".
 
 Nomor bot dan grup tujuan bisa diganti kapan saja lewat tombol **Ganti nomor bot** dan **Ganti grup tujuan** di kotak **Pengaturan bot**. Bila nomornya berbeda, grup tujuan perlu dipilih lagi.
 

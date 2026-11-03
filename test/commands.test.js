@@ -18,6 +18,9 @@ test('panggilan dikenali hanya bila diawali sapaan dan nama bot', () => {
   assert.deepEqual(parseCall('halo tani cuaca tanggal 20', 'tani', day), { kind: 'past' });
   assert.deepEqual(parseCall('halo tani cuaca tanggal 15', 'tani', day), { kind: 'too_far' });
   assert.deepEqual(parseCall('halo tani menu', 'tani', day), { kind: 'help' });
+  // Nomor bot di-tag lebih dulu
+  assert.deepEqual(parseCall('@6281234567890 halo tani besok', 'tani', day), { kind: 'day', offset: 1 });
+  assert.equal(parseCall('@6281234567890 besok hujan?', 'tani', day), null);
 });
 
 test('pertanyaan bebas: hari dan tanggal dikenali sendiri, termasuk bahasa Jawa', () => {

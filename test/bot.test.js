@@ -2,11 +2,11 @@ import './setup.js'; // harus paling awal: pengaturan bawaan dan folder data sem
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/config.js';
-import { morningMessage } from '../src/messages.js';
+import { morningMessage, thanksMessage } from '../src/messages.js';
 import { updateState } from '../src/store.js';
 import { nowWib } from '../src/time.js';
-import { answer } from '../src/bot/replies.js';
-import { botSend, limitReason, linkPhase, sendLimits } from '../src/bot/send.js';
+import { answer, replyText, rememberAnswer } from '../src/bot/replies.js';
+import { botSend, hourlyFreeAt, limitReason, linkPhase, sendLimits } from '../src/bot/send.js';
 import { pendingAlerts } from '../src/bot/alerts.js';
 import { morningAt, morningDue, parseScheduleTime, stableJitter } from '../src/bot/schedule.js';
 import { bmkg, om, today, tomorrow, dayAfter, offline, sources, slot } from './helpers.js';
@@ -19,7 +19,7 @@ test('jawaban membantu: contoh pertanyaan memakai hari dan tanggal yang akan dat
   const help = await answer({ kind: 'help' }, '2026-10-25', sources);
   assert.match(help, /halo tani rabu\* → hari Rabu terdekat/);
   assert.match(help, /halo tani tanggal 29\* atau \*halo tani 29 oktober/);
-  assert.match(await answer({ kind: 'unknown' }, '2026-10-25', sources), /belum paham[\s\S]*CARA BERTANYA/);
+  assert.match(await answer({ kind: 'unknown' }, '2026-10-25', sources), /belum (paham|mengerti|dikenali)[\s\S]*CARA BERTANYA/);
   assert.match(await answer({ kind: 'past' }, '2026-10-25', sources), /sudah lewat/);
   assert.match(await answer({ kind: 'day', offset: 0 }, today, sources), /💬 Cuaca besok\? Ketik \*halo tani besok\*/);
   assert.match(morningMessage(bmkg, tomorrow), /💬 .*\*halo tani /);
@@ -79,7 +79,40 @@ test('batas kirim per jam (lebih ketat saat pemanasan) dan per hari', () => {
   // Setelah pemanasan batas per jam lebih longgar
   assert.equal(limitReason(busy, 'normal', now), null);
   // Batas harian tetap berlaku
-  assert.match(limitReason({ sent: { date: '2026-11-02', count: 40 }, recentSends: [] }, 'normal', now), /sudah mengirim 40 pesan/);
+  const perDay = config.maxMessagesPerDay;
+  assert.match(limitReason({ sent: { date: '2026-11-02', count: perDay }, recentSends: [] }, 'normal', now), new RegExp(`sudah mengirim ${perDay} pesan`));
+  // Antrean jawaban menunggu sampai batas per jam terbuka lagi
+  assert.equal(hourlyFreeAt(busy, 'pemanasan', now), minutesAgo(10) + 60 * 60_000);
+  assert.equal(hourlyFreeAt(busy, 'normal', now), null);
+});
+
+test('pertanyaan yang sama dalam 30 menit dijawab singkat "sudah dijawab", yang lain tetap lengkap', async () => {
+  const jid = '120363000000000001@g.us';
+  const besok = { jid, call: { kind: 'day', offset: 1 }, today };
+  const first = await replyText(besok, sources);
+  assert.match(first.text, /CUACA BESOK/);
+  rememberAnswer(jid, first.topic, Date.parse('2026-10-25T16:41:00Z'));
+
+  // Waktu jawaban sebelumnya sudah lebih dari 30 menit lalu: jawab lengkap lagi
+  assert.match((await replyText(besok, sources)).text, /CUACA BESOK/);
+  rememberAnswer(jid, first.topic);
+  const again = await replyText(besok, sources);
+  assert.match(again.text, /pukul \d{2}\.\d{2} WIB/);
+  assert.match(again.text, /cuaca besok \(\w+, \d+ \w+\)/i);
+  assert.ok(again.text.length < 200);
+  // Hari lain, grup lain: jawaban lengkap
+  assert.match((await replyText({ ...besok, call: { kind: 'day', offset: 2 } }, sources)).text, /CUACA LUSA/);
+  assert.match((await replyText({ ...besok, jid: '120363000000000002@g.us' }, sources)).text, /CUACA BESOK/);
+
+  // Tidak paham setelah cara bertanya baru dikirim: contoh singkat, bukan daftar panjang lagi
+  const help = await replyText({ jid, call: { kind: 'help' }, today }, sources);
+  rememberAnswer(jid, help.topic);
+  assert.doesNotMatch((await replyText({ jid, call: { kind: 'unknown' }, today }, sources)).text, /CARA BERTANYA/);
+});
+
+test('jawaban pendek berganti-ganti kalimat', () => {
+  const texts = Array.from({ length: 6 }, () => thanksMessage());
+  for (let i = 1; i < texts.length; i++) assert.notEqual(texts[i], texts[i - 1]);
 });
 
 test('bot menolak mengirim ke selain grup penerima, tanpa menghitung pesan', async () => {

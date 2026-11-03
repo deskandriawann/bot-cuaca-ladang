@@ -35,6 +35,12 @@ export function sendLimits(phase = linkPhase().phase) {
 
 const sentWithinHour = (state, now) => (state.recentSends ?? []).filter((t) => now - t < HOUR_MS);
 
+/** Waktu (ms) batas per jam terbuka lagi, atau null bila belum tercapai. */
+export function hourlyFreeAt(state, phase = linkPhase().phase, now = Date.now()) {
+  const recent = sentWithinHour(state, now);
+  return recent.length >= sendLimits(phase).perHour ? Math.min(...recent) + HOUR_MS : null;
+}
+
 /** Batas yang sudah tercapai, sebagai kalimat untuk pengurus; null bila bot masih boleh mengirim. */
 export function limitReason(state, phase, now = Date.now()) {
   const { perHour, perDay } = sendLimits(phase);
@@ -42,10 +48,8 @@ export function limitReason(state, phase, now = Date.now()) {
   if ((state.sent?.date === today ? state.sent.count : 0) >= perDay) {
     return `Hari ini bot sudah mengirim ${perDay} pesan, batas amannya. Besok bisa mengirim lagi`;
   }
-  const recent = sentWithinHour(state, now);
-  if (recent.length >= perHour) {
-    return `Bot sudah mengirim ${perHour} pesan dalam 1 jam terakhir. Bisa mengirim lagi pukul ${nowWib(new Date(Math.min(...recent) + HOUR_MS)).hhmm} WIB`;
-  }
+  const freeAt = hourlyFreeAt(state, phase, now);
+  if (freeAt) return `Bot sudah mengirim ${perHour} pesan dalam 1 jam terakhir. Bisa mengirim lagi pukul ${nowWib(new Date(freeAt)).hhmm} WIB`;
   return null;
 }
 
@@ -61,7 +65,8 @@ const recentTexts = new Map(); // sidik teks → waktu kirim
 
 /**
  * Jalan satu-satunya bot mengirim pesan WhatsApp. Menegakkan: hanya ke grup penerima, masa tenang,
- * batas pesan per jam dan per hari, dan tidak mengirim teks yang sama dua kali dalam 30 menit.
+ * batas pesan per jam dan per hari, dan tidak mengirim teks yang sama dua kali dalam 30 menit
+ * (jawaban untuk pesan anggota yang berbeda tidak dianggap sama).
  */
 export async function botSend(jid, text, quoted) {
   const state = getState();
@@ -77,7 +82,7 @@ export async function botSend(jid, text, quoted) {
   if (reason) throw notSent(reason);
 
   for (const [key, at] of recentTexts) if (Date.now() - at > DUPLICATE_WINDOW_MS) recentTexts.delete(key);
-  const fingerprint = crypto.createHash('sha256').update(`${jid}\n${text}`).digest('hex');
+  const fingerprint = crypto.createHash('sha256').update(`${jid}\n${quoted?.key?.id ?? ''}\n${text}`).digest('hex');
   if (recentTexts.has(fingerprint)) throw notSent('Pesan yang sama baru saja dikirim, tidak perlu dikirim lagi');
 
   const today = nowWib().date;

@@ -55,12 +55,10 @@ export const config = {
   quietHoursAfterLink: num('QUIET_HOURS_AFTER_LINK', 24),
   warmupDays: num('WARMUP_DAYS', 7),
   warmupMaxMessagesPerHour: num('WARMUP_MAX_MESSAGES_PER_HOUR', 3), // saat pemanasan
-  maxMessagesPerHour: num('MAX_MESSAGES_PER_HOUR', 10),   // setelah pemanasan
-  maxMessagesPerDay: num('MAX_MESSAGES_PER_DAY', 40),     // semua pesan keluar, termasuk kirim manual dari halaman pengelola
+  maxMessagesPerHour: num('MAX_MESSAGES_PER_HOUR', 20),   // setelah pemanasan; pertanyaan di atas batas ini menunggu giliran
+  maxMessagesPerDay: num('MAX_MESSAGES_PER_DAY', 100),    // semua pesan keluar, termasuk kirim manual dari halaman pengelola
   maxLinkAttemptsPerDay: num('MAX_LINK_ATTEMPTS_PER_DAY', 3),
   maxConnectsPerHour: num('MAX_CONNECTS_PER_HOUR', 6),     // pemutus bila bot terus menyambung ulang (misalnya crash berulang)
-  replyCooldownSec: num('REPLY_COOLDOWN_SEC', 30),        // jeda minimal antar-balasan di grup
-  maxRepliesPerDay: num('MAX_REPLIES_PER_DAY', 30),
   // Tautan dalam pesan otomatis dari nomor bot umum dianggap sinyal spam. Bawaan: tanpa tautan;
   // tautan rincian ditaruh di deskripsi grup dan di teks kirim manual.
   linkInAutoMessages: env('LINK_IN_AUTO_MESSAGES', 'false').toLowerCase() === 'true',

@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import makeWASocket, {
-  DisconnectReason, fetchLatestBaileysVersion, Browsers, normalizeMessageContent, isJidGroup,
+  DisconnectReason, fetchLatestBaileysVersion, Browsers, normalizeMessageContent, isJidGroup, toNumber,
 } from 'baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
@@ -275,15 +275,18 @@ async function connect() {
     }
   });
 
+  // 'append' = pesan yang masuk selagi bot terputus atau menyala ulang; ikut diteruskan agar panggilan saat itu tetap dijawab.
+  // Umur pesan disaring di replies.js.
   sock.ev.on('messages.upsert', ({ messages, type }) => {
-    if (gen !== generation || type !== 'notify') return;
+    if (gen !== generation || (type !== 'notify' && type !== 'append')) return;
     for (const msg of messages) {
       const jid = msg.key.remoteJid;
       if (msg.key.fromMe || !isJidGroup(jid)) continue;
       const content = normalizeMessageContent(msg.message);
       const text = content?.conversation ?? content?.extendedTextMessage?.text ?? content?.imageMessage?.caption;
       if (!text) continue;
-      messageHandler({ jid, text, msg }).catch((err) => logger.error(err, 'Gagal menangani pesan'));
+      const at = toNumber(msg.messageTimestamp) * 1000 || Date.now();
+      messageHandler({ jid, text, msg, at }).catch((err) => logger.error(err, 'Gagal menangani pesan'));
     }
   });
 }

@@ -1,6 +1,7 @@
 // Mengenali panggilan di grup: "halo <nama bot>" lalu pertanyaan bebas. Harinya dikenali sendiri dari kalimat:
 // "besok", "lusa", "sabtu", "tanggal 5", "5 november", "5/11", "3 hari lagi", "10 hari", termasuk bahasa Jawa
-// sehari-hari ("sesuk", "setu", "rebo"). Sapaan tetap wajib agar obrolan biasa di grup tidak dijawab bot.
+// sehari-hari ("sesuk", "setu", "rebo"). Sapaan tetap wajib agar obrolan biasa di grup tidak dijawab bot;
+// tag nomor bot di depannya ("@Info Cuaca halo tani besok") boleh.
 import { addDays, weekdayIndex } from './time.js';
 
 const MAX_DAYS = 10;
@@ -29,7 +30,7 @@ function monthOf(word) {
  * offset 0 = hari ini (hari ke-1).
  */
 export function parseCall(text, botName, today) {
-  const greeting = new RegExp(`^\\s*(hal+o+|hel+o+|hai+|hay|hi|hei|hey)[\\s,]+${escapeRegex(botName)}(?![\\p{L}\\p{N}])(.*)$`, 'isu');
+  const greeting = new RegExp(`^\\s*(?:@\\S+\\s+)*(hal+o+|hel+o+|hai+|hay|hi|hei|hey)[\\s,]+${escapeRegex(botName)}(?![\\p{L}\\p{N}])(.*)$`, 'isu');
   const match = String(text ?? '').match(greeting);
   if (!match) return null;
 

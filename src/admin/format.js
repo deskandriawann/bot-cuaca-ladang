@@ -62,6 +62,7 @@ const LOG_KINDS = {
   pagi: ['☀️', 'Info cuaca pagi'],
   jawaban: ['💬', 'Menjawab pertanyaan'],
   tak_dijawab: ['🔇', 'Pertanyaan tidak dijawab'],
+  antrean: ['⏳', 'Pertanyaan menunggu giliran'],
   pembaruan: ['⚠️', 'Peringatan cuaca'],
   uji: ['✅', 'Pesan percobaan'],
   nomor: ['📱', 'Nomor bot'],
