@@ -54,16 +54,13 @@ export async function answer(call, today, { getBmkg = fetchBmkg, getOm = fetchOp
 
 let lastReplyAt = 0;
 
-/** Pesan grup dari wa: dijawab hanya di grup penerima, pada jam wajar, dengan jeda dan batas harian. */
+/** Pesan grup dari wa: dijawab hanya di grup penerima (kapan saja), dengan jeda dan batas harian. */
 export async function handleGroupMessage({ jid, text, msg }) {
   const state = getState();
   if (jid !== state.groupJid || linkPhase().phase === 'tenang') return;
   const now = nowWib();
   const call = parseCall(text, config.botName, now.date);
   if (!call) return;
-
-  // Malam hari tidak menjawab, seperti orang yang sedang tidur
-  if (now.hour < config.replyStartHour || now.hour >= config.replyEndHour) return;
 
   // Panggilan beruntun atau terlalu banyak dalam sehari diabaikan, agar bot tidak terlihat seperti spam
   if (Date.now() - lastReplyAt < config.replyCooldownSec * 1000) return;

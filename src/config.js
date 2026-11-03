@@ -61,8 +61,6 @@ export const config = {
   maxConnectsPerHour: num('MAX_CONNECTS_PER_HOUR', 6),     // pemutus bila bot terus menyambung ulang (misalnya crash berulang)
   replyCooldownSec: num('REPLY_COOLDOWN_SEC', 30),        // jeda minimal antar-balasan di grup
   maxRepliesPerDay: num('MAX_REPLIES_PER_DAY', 30),
-  replyStartHour: num('REPLY_START_HOUR', 5),             // di luar jam ini panggilan tidak dijawab (seperti orang tidur)
-  replyEndHour: num('REPLY_END_HOUR', 21),
   // Tautan dalam pesan otomatis dari nomor bot umum dianggap sinyal spam. Bawaan: tanpa tautan;
   // tautan rincian ditaruh di deskripsi grup dan di teks kirim manual.
   linkInAutoMessages: env('LINK_IN_AUTO_MESSAGES', 'false').toLowerCase() === 'true',

@@ -54,7 +54,7 @@ Semua kemungkinan penyebab blokir dan gangguan, penanganannya, dan urutan pemaka
 
 - **Nomor:** dipakai chat biasa minimal 10 hari sebelum ditautkan, profil lengkap, PIN dua langkah, disimpan anggota (dicentang di halaman pengelola sebelum menautkan), masa aktif SIM dipantau.
 - **Penautan:** lewat QR, paling banyak 3 kali sehari, berhenti sendiri bila waktu habis, tidak pernah menautkan ulang otomatis.
-- **Pengiriman:** satu pintu yang hanya mengizinkan grup tujuan; masa tenang 24 jam dan pemanasan 7 hari; batas pesan per jam (3 saat pemanasan, 10 setelahnya) dan 40 per hari; menit kirim acak; tandai dibaca, status mengetik, jeda; tidak menjawab malam hari; teks sama tidak dikirim dua kali; ringkasan paling banyak sekali sehari.
+- **Pengiriman:** satu pintu yang hanya mengizinkan grup tujuan; masa tenang 24 jam dan pemanasan 7 hari; batas pesan per jam (3 saat pemanasan, 10 setelahnya) dan 40 per hari; menit kirim acak; tandai dibaca, status mengetik, jeda; teks sama tidak dikirim dua kali; ringkasan paling banyak sekali sehari.
 - **Isi:** pesan otomatis tanpa tautan; tautan BMKG ditaruh di deskripsi grup dan di teks Kirim manual.
 - **Server:** pemutus sambung ulang (maks 6 per jam, tetap berlaku walau program crash), systemd tidak menyalakan ulang beruntun, versi Baileys dikunci, deteksi sesi ganda.
 - **Cadangan:** Kirim manual selalu tersedia; `WA_MODE=manual` mematikan Baileys sepenuhnya.
