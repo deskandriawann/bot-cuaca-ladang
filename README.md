@@ -156,7 +156,7 @@ npm run kirim -- "pesan singkat perubahan"   # ada perubahan yang belum di-commi
 npm run kirim                                # semua perubahan sudah di-commit
 ```
 
-Urutannya: periksa kode (`npm run check`; bila gagal, berhenti dan server tidak diubah) → commit → push ke GitHub → server menjalankan `git pull`, memasang ulang paket bila `package-lock.json` berubah, menyalakan ulang bot, lalu menunggu sampai bot tersambung lagi ke WhatsApp. Bila server sudah memakai versi terbaru, bot tidak dinyalakan ulang.
+Urutannya: periksa kode (`npm run check`; bila gagal, berhenti dan server tidak diubah) → commit → push ke GitHub → server menjalankan `git pull`, memasang ulang paket bila `package-lock.json` berubah, menyalakan ulang bot, lalu menunggu sampai bot tersambung lagi ke WhatsApp. Bila server sudah memakai versi terbaru, atau yang berubah hanya dokumen, skrip, atau tes (di luar `src/`, `assets/`, `deploy/`, `package*.json`), bot tidak dinyalakan ulang.
 
 Butuh alias SSH `infocuacatani` di `~/.ssh/config` laptop (server lain: isi `DEPLOY_HOST` dan `DEPLOY_DIR`). Setiap kirim berarti bot menyambung ulang ke WhatsApp, jadi kumpulkan perubahan lalu kirim sekaligus, bukan berkali-kali sejam. `.env` di server tidak ikut berubah; pengaturan di sana diubah dengan `ssh infocuacatani`, lalu `nano ~/bot-cuaca/.env`.
 

@@ -36,7 +36,14 @@ if (changes && !message) {
 
 // 2. Periksa kode lebih dulu: kode yang gagal pemeriksaan tidak sampai ke server
 step('Memeriksa kode (lint, tes, keamanan paket)...');
-if (!run('npm run check', [], { shell: true }).ok) stop('Pemeriksaan gagal. Perbaiki dulu; server tidak diubah.');
+const check = run('npm run check', [], { shell: true, quiet: true });
+if (!check.ok) {
+  // Hanya bagian yang gagal yang ditampilkan, bukan seluruh daftar tes
+  const failed = `${check.out}\n${check.err}`.split('\n').filter((line) => !/^\s*(ok \d|#|---|\.\.\.|duration_ms)/.test(line));
+  console.log(failed.slice(-40).join('\n'));
+  stop('Pemeriksaan gagal. Perbaiki dulu; server tidak diubah.');
+}
+console.log('Semua pemeriksaan lolos.');
 
 // 3. Simpan dan unggah ke GitHub (.env dan data/ tidak ikut, sudah dikecualikan di .gitignore)
 if (changes) {
@@ -63,15 +70,17 @@ if (current.out === local) {
 }
 
 step('Server mengambil versi terbaru dan menyalakan ulang bot (sekitar 1 menit)...');
-// Kode keluar: 0 tersambung ke WhatsApp, 3 bot mati, 4 menyala tapi belum tersambung
+// Kode keluar: 0 tersambung ke WhatsApp, 3 bot mati, 4 menyala tapi belum tersambung,
+// 5 hanya dokumen/skrip/tes yang berubah (bot tidak perlu menyambung ulang ke WhatsApp)
 const remote = `set -e
 cd ${dir}
 before=$(git rev-parse HEAD)
 git pull -q --ff-only
 git log --oneline -1
+if ! git diff --name-only "$before" HEAD | grep -qE '^(src/|assets/|deploy/|package(-lock)?\\.json$)'; then exit 5; fi
 if ! git diff --quiet "$before" HEAD -- package.json package-lock.json; then
   echo "Memasang ulang paket..."
-  npm ci --omit=dev --no-audit --no-fund
+  npm ci --omit=dev --no-audit --no-fund --loglevel=error
 fi
 if ! git diff --quiet "$before" HEAD -- deploy/bot-cuaca.service; then
   sudo cp deploy/bot-cuaca.service /etc/systemd/system/ && sudo systemctl daemon-reload
@@ -93,6 +102,8 @@ if (deploy.code === 0) {
   console.log('\n✅ Selesai. Server memakai versi terbaru dan bot sudah tersambung ke WhatsApp.');
 } else if (deploy.code === 3) {
   stop(`Bot mati setelah dinyalakan ulang. Lihat lognya di atas, atau: ssh ${host} "journalctl -u bot-cuaca -n 50"`);
+} else if (deploy.code === 5) {
+  console.log('\n✅ Selesai. Yang berubah hanya dokumen atau skrip, jadi bot tidak perlu dinyalakan ulang.');
 } else if (deploy.code === 4) {
   console.log('\n⚠️ Kode sudah terpasang dan bot menyala, tetapi belum tersambung ke WhatsApp dalam 90 detik.\n' +
     '   Lihat halaman pengelola beberapa menit lagi. Bila tertulis WhatsApp memutus bot, ikuti petunjuk di sana.');
