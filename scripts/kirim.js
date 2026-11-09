@@ -69,7 +69,7 @@ if (current.out === local) {
   process.exit(0);
 }
 
-step('Server mengambil versi terbaru dan menyalakan ulang bot (sekitar 1 menit)...');
+step('Server mengambil versi terbaru (bila kode bot berubah, bot dinyalakan ulang: sekitar 1 menit)...');
 // Kode keluar: 0 tersambung ke WhatsApp, 3 bot mati, 4 menyala tapi belum tersambung,
 // 5 hanya dokumen/skrip/tes yang berubah (bot tidak perlu menyambung ulang ke WhatsApp)
 const remote = `set -e
