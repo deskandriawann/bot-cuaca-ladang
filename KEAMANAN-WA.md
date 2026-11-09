@@ -47,7 +47,7 @@ Sumber harga Cloud API: [Pricing on the WhatsApp Business Platform](https://deve
 
 | Kemungkinan | Penanganan | Oleh |
 | --- | --- | --- |
-| Langsung mengirim begitu tertaut | Masa tenang 24 jam (diam total), lalu pemanasan 7 hari: paling banyak 3 pesan per jam, tanpa pemberitahuan mendadak | Kode |
+| Langsung mengirim begitu tertaut | Tidak ada masa tunggu di kode (dihapus atas permintaan pengurus). Gantinya: nomor dipakai seperti biasa minimal 10 hari sebelum ditautkan, lalu dicoba dulu di grup kecil | Pengurus |
 | Volume terlalu banyak | Batas 20 pesan keluar per jam dan 100 per hari, 3 pemberitahuan mendadak per hari. Panggilan dijawab satu per satu lewat antrean (minimal 15 detik antar-pesan); pertanyaan yang sama dalam 30 menit dijawab singkat "sudah dijawab di atas", bukan jawaban panjang yang sama | Kode |
 | Jam kirim persis sama setiap hari | Ringkasan pagi pada menit acak 05.00-05.14 (berbeda tiap hari, tanpa pola berurutan); pemeriksaan per jam juga pada menit acak | Kode |
 | Membalas seketika tanpa membaca | Pesan ditandai dibaca dengan jeda 1-4 detik, lalu status mengetik 3-12 detik; antar-pesan minimal 15 detik | Kode |
@@ -117,7 +117,7 @@ Karena itu Kirim manual selalu tersedia sebagai jalur cadangan.
 | Hari 0 | SIM baru di slot 2, daftar WhatsApp Business, isi profil, nyalakan PIN dan pesan salam, catat masa aktif SIM | `manual`, kirim manual tiap pagi |
 | Hari 0 sampai 10 | Pakai nomor untuk chat biasa dengan pengurus dan beberapa anggota; minta mereka menyimpan nomornya | `manual` |
 | Hari 10 | Tautkan lewat QR, pilih **grup uji** berisi 3-5 orang | `otomatis` |
-| Hari 10 sampai 18 | Masa tenang 24 jam, lalu pemanasan 7 hari di grup uji | `otomatis` |
+| Hari 10 sampai 17 | Bot berjalan di grup uji, pastikan ringkasan pagi dan jawaban "halo tani" masuk | `otomatis` |
 | Setelah itu | Admin mengumumkan bot di grup Kelompok Tani, memasukkan nomor bot, lalu grup tujuan dipindah ke grup Kelompok Tani | `otomatis`, kirim manual sebagai cadangan |
 
 Pengaturan yang disebut di atas ada di [.env.example](.env.example).

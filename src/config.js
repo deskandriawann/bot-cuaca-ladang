@@ -50,12 +50,8 @@ export const config = {
   // yang pasti diberi peringatan "potensi hujan"; yang belum pasti, dan hujan ringan, cukup jadi info.
   rainSurePercent: num('RAIN_SURE_PERCENT', 70),
 
-  // Pengaman anti-blokir. Setelah nomor tertaut: masa tenang (diam total), lalu masa pemanasan
-  // (hanya ringkasan pagi dan sedikit jawaban, tanpa pemberitahuan mendadak), lalu normal.
-  quietHoursAfterLink: num('QUIET_HOURS_AFTER_LINK', 24),
-  warmupDays: num('WARMUP_DAYS', 7),
-  warmupMaxMessagesPerHour: num('WARMUP_MAX_MESSAGES_PER_HOUR', 3), // saat pemanasan
-  maxMessagesPerHour: num('MAX_MESSAGES_PER_HOUR', 20),   // setelah pemanasan; pertanyaan di atas batas ini menunggu giliran
+  // Pengaman anti-blokir: batas pesan keluar, penautan, dan sambung ulang
+  maxMessagesPerHour: num('MAX_MESSAGES_PER_HOUR', 20),   // pertanyaan di atas batas ini menunggu giliran
   maxMessagesPerDay: num('MAX_MESSAGES_PER_DAY', 100),    // semua pesan keluar, termasuk kirim manual dari halaman pengelola
   maxLinkAttemptsPerDay: num('MAX_LINK_ATTEMPTS_PER_DAY', 3),
   maxConnectsPerHour: num('MAX_CONNECTS_PER_HOUR', 6),     // pemutus bila bot terus menyambung ulang (misalnya crash berulang)

@@ -3,7 +3,6 @@ import { config } from '../config.js';
 import { nowWib } from '../time.js';
 import { getState } from '../store.js';
 import { wa, isConnected, hasLinkedSession, linkAttemptsLeft, listGroups } from '../whatsapp/connection.js';
-import { linkPhase } from '../bot/send.js';
 import { buildMorning } from '../bot/morning.js';
 import { answer } from '../bot/replies.js';
 import { esc, ICONS, flash, hero, page } from './layout.js';
@@ -54,7 +53,7 @@ function morningNote() {
   if (state.morningEnabled === false) {
     return flash('Info pagi otomatis sedang dimatikan. Kirim lewat tombol di bawah bila grup perlu info hari ini.', 'warn');
   }
-  if (isConnected() && state.groupJid && linkPhase().phase !== 'tenang') {
+  if (isConnected() && state.groupJid) {
     return flash(`Bot akan mengirim sendiri ${nextMorningText()}. Kirim manual hanya bila bot tidak mengirim.`, 'warn');
   }
   return flash('Bot sedang tidak mengirim sendiri. Kirim info cuaca lewat tombol di bawah.', 'warn');

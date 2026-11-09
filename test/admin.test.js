@@ -18,16 +18,16 @@ test('nomor telepon dinormalkan ke format 62', () => {
 });
 
 test('langkah menyambungkan bot berurutan sampai pesan percobaan', () => {
-  const steps = (linked, grouped, quiet, tested) => setupSteps({ linked, grouped, quiet, tested });
-  assert.equal(steps(false, false, false, false).current, 0);
+  const steps = (linked, grouped, tested) => setupSteps({ linked, grouped, tested });
+  assert.equal(steps(false, false, false).current, 0);
   // Grup lama tanpa nomor tertaut tidak dihitung selesai
-  assert.deepEqual(steps(false, true, false, true).done, [false, false, false, false]);
-  assert.equal(steps(true, false, true, false).current, 1);
-  assert.equal(steps(true, true, true, false).current, 2);
-  assert.equal(steps(true, true, false, false).current, 3);
-  assert.equal(steps(true, true, false, false).complete, false);
-  assert.equal(steps(true, true, false, true).complete, true);
-  assert.equal(steps(true, true, false, true).current, -1);
+  assert.deepEqual(steps(false, true, true).done, [false, false, false]);
+  assert.equal(steps(true, false, false).current, 1);
+  // Nomor baru tertaut dan grup dipilih: langsung ke pesan percobaan, tanpa menunggu
+  assert.equal(steps(true, true, false).current, 2);
+  assert.equal(steps(true, true, false).complete, false);
+  assert.equal(steps(true, true, true).complete, true);
+  assert.equal(steps(true, true, true).current, -1);
 });
 
 test('halaman pengelola: keamanan, pesan bertanda tangan, jam kirim, dan kunci masuk', async () => {

@@ -7,7 +7,7 @@ const DEFAULT_STATE = {
   groupJid: null,      // grup tujuan, dipilih di halaman pengelola
   groupName: null,
   phone: null,         // nomor bot terakhir yang didaftarkan
-  linkedAt: null,      // waktu nomor terakhir berhasil ditautkan (awal masa tenang)
+  linkedAt: null,      // waktu nomor terakhir berhasil ditautkan (pesan uji berlaku per penautan)
   sessionRevoked: null, // { at, code } bila sesi dikeluarkan WhatsApp (401/403); tidak dipakai login lagi
   linkAttempts: { date: null, count: 0 }, // percobaan penautan hari ini
   testedFor: null,     // "linkedAt|groupJid" saat pesan uji terakhir terkirim (langkah terakhir menyambungkan bot)

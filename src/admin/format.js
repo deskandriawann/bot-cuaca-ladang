@@ -10,12 +10,6 @@ export function phoneText(phone) {
   return local.replace(/(\d{4})(?=\d)/g, '$1-');
 }
 
-/** '01/11 pukul 17.21 WIB' */
-export function wibText(date) {
-  const t = nowWib(date);
-  return `${t.date.slice(8)}/${t.date.slice(5, 7)} pukul ${t.hhmm} WIB`;
-}
-
 /** Waktu catatan kegiatan: 'Hari ini 16.51', 'Kemarin 05.08', atau '28 Okt 05.08' */
 export function whenText(iso) {
   const t = nowWib(new Date(iso));

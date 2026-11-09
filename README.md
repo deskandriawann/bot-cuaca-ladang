@@ -54,7 +54,7 @@ Semua kemungkinan penyebab blokir dan gangguan, penanganannya, dan urutan pemaka
 
 - **Nomor:** dipakai chat biasa minimal 10 hari sebelum ditautkan, profil lengkap, PIN dua langkah, disimpan anggota (dicentang di halaman pengelola sebelum menautkan), masa aktif SIM dipantau.
 - **Penautan:** lewat QR, paling banyak 3 kali sehari, berhenti sendiri bila waktu habis, tidak pernah menautkan ulang otomatis.
-- **Pengiriman:** satu pintu yang hanya mengizinkan grup tujuan; masa tenang 24 jam dan pemanasan 7 hari; batas pesan per jam (3 saat pemanasan, 20 setelahnya) dan 100 per hari; semua panggilan masuk antrean dan dijawab dengan membalas pesannya, pertanyaan yang sama dalam 30 menit cukup ditunjukkan ke jawaban sebelumnya; menit kirim acak; tandai dibaca, status mengetik, jeda; teks sama tidak dikirim dua kali; ringkasan paling banyak sekali sehari.
+- **Pengiriman:** satu pintu yang hanya mengizinkan grup tujuan; batas 20 pesan per jam dan 100 per hari (nomor yang baru tertaut langsung bisa dipakai, tanpa masa tunggu); semua panggilan masuk antrean dan dijawab dengan membalas pesannya, pertanyaan yang sama dalam 30 menit cukup ditunjukkan ke jawaban sebelumnya; menit kirim acak; tandai dibaca, status mengetik, jeda; teks sama tidak dikirim dua kali; ringkasan paling banyak sekali sehari.
 - **Isi:** pesan otomatis tanpa tautan; tautan BMKG ditaruh di deskripsi grup dan di teks Kirim manual.
 - **Server:** pemutus sambung ulang (maks 6 per jam, tetap berlaku walau program crash), systemd tidak menyalakan ulang beruntun, versi Baileys dikunci, deteksi sesi ganda.
 - **Cadangan:** Kirim manual selalu tersedia; `WA_MODE=manual` mematikan Baileys sepenuhnya.
@@ -112,7 +112,7 @@ assets/               gambar halaman pengelola (.png/.jpg/.webp/.svg, video .mp4
 Aturan yang dijaga saat mengubah kode:
 
 - **Arah ketergantungan satu arah:** `weather/`, `messages.js`, `commands.js`, `time.js` tidak tahu WhatsApp; `bot/` memakai `whatsapp/`; `admin/` memakai `bot/`. Bagian bawah tidak pernah mengimpor bagian atasnya.
-- **Semua pesan keluar lewat `bot/send.js`** (`botSend`), agar batas harian, masa tenang, dan hanya-ke-grup-penerima tidak bisa terlewati.
+- **Semua pesan keluar lewat `bot/send.js`** (`botSend`), agar batas pesan dan hanya-ke-grup-penerima tidak bisa terlewati.
 - **Halaman pengelola tanpa sisipan:** semua teks dari luar lewat `esc()`, gaya dan skrip hanya di `admin/static/` (CSP melarang skrip, gaya, dan `onclick` sisipan; pengujian memeriksanya).
 - **Pesan untuk pengurus dalam bahasa sehari-hari;** kode dan rincian teknis hanya ke log server.
 - `npm run check` hijau sebelum push. `test/modules.test.js` memuat semua modul, jadi jalur impor yang salah setelah berkas dipindah langsung ketahuan.

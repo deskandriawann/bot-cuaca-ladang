@@ -4,13 +4,13 @@ import { config } from '../config.js';
 import { minuteLabel, nowWib } from '../time.js';
 import { getState, updateState, addLog } from '../store.js';
 import { startLinking, requestPairingCode, listGroups, isConnected, hasLinkedSession } from '../whatsapp/connection.js';
-import { botSend, linkPhase } from '../bot/send.js';
+import { botSend } from '../bot/send.js';
 import { sendMorning } from '../bot/morning.js';
 import {
   SCHEDULE_EARLIEST, SCHEDULE_LATEST, morningAt, morningDue, morningRange, parseScheduleTime, setMorningSchedule,
 } from '../bot/schedule.js';
 import { withFlash } from './security.js';
-import { morningTime, wibText } from './format.js';
+import { morningTime } from './format.js';
 import { testKey, testText } from './dashboard.js';
 import { MANUAL_TEXTS, buildText } from './pages.js';
 import { devBridge, mainBot } from './dev.js';
@@ -50,10 +50,7 @@ async function saveGroup(form) {
   const group = (await listGroups()).find((g) => g.id === form.jid);
   if (!group) return home('Gagal: grup tidak ditemukan');
   const state = updateState({ groupJid: group.id, groupName: group.subject });
-  const { phase, until } = linkPhase();
-  const next = state.testedFor === testKey(state) ? ''
-    : phase === 'tenang' ? ` Langkah berikutnya: tunggu sampai ${wibText(until)}, lalu kirim pesan percobaan.`
-      : ' Langkah berikutnya: kirim pesan percobaan.';
+  const next = state.testedFor === testKey(state) ? '' : ' Langkah berikutnya: kirim pesan percobaan.';
   return home(`Grup penerima disimpan: ${group.subject}.${next}`);
 }
 
@@ -85,7 +82,7 @@ async function saveSchedule(form) {
   // Bila info hari ini belum terkirim, beri tahu kapan jam baru itu berlaku hari ini
   const state = getState();
   const now = nowWib();
-  const ready = isConnected() && state.groupJid && linkPhase().phase !== 'tenang' && state.morningSentOn !== now.date;
+  const ready = isConnected() && state.groupJid && state.morningSentOn !== now.date;
   const today = !ready ? ''
     : morningDue(now) ? ' Info cuaca hari ini belum terkirim, jadi dikirim dalam 1 menit.'
       : now.hour * 60 + now.minute < morningAt(now.date) ? ` Info cuaca hari ini dikirim pukul ${morningTime(now.date)}.` : '';

@@ -4,7 +4,6 @@ import { logger } from '../log.js';
 import { nowWib } from '../time.js';
 import { getState } from '../store.js';
 import { isConnected } from '../whatsapp/connection.js';
-import { linkPhase } from './send.js';
 import { sendMorning } from './morning.js';
 import { checkChanges } from './alerts.js';
 import { morningDue, stableJitter } from './schedule.js';
@@ -12,7 +11,7 @@ import { morningDue, stableJitter } from './schedule.js';
 let lastCheckHour = null;
 
 async function tick() {
-  if (!isConnected() || linkPhase().phase === 'tenang') return;
+  if (!isConnected()) return;
   const now = nowWib();
   const { morningSentOn, groupJid, morningEnabled } = getState();
   // Info pagi dimatikan pengurus: bot tidak mengirim apa pun sendiri, hanya menjawab pertanyaan

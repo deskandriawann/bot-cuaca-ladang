@@ -4,20 +4,20 @@ import { addDays, minuteLabel, nowWib } from '../time.js';
 import { getState } from '../store.js';
 import { greeting } from '../messages.js';
 import { wa, isConnected, hasLinkedSession } from '../whatsapp/connection.js';
-import { linkPhase, sendLimits } from '../bot/send.js';
+import { sendLimits } from '../bot/send.js';
 import { SCHEDULE_EARLIEST, SCHEDULE_LATEST, defaultMorningBase, morningBase, morningRange } from '../bot/schedule.js';
 import { esc, ICONS, flash, hero, page, tiles } from './layout.js';
-import { STATUS_COLOR, logEntry, morningTime, nextMorningText, phoneText, statusOf, wibText } from './format.js';
+import { STATUS_COLOR, logEntry, morningTime, nextMorningText, phoneText, statusOf } from './format.js';
 import { devCard } from './dev.js';
 
 const manualMode = config.waMode === 'manual';
 
 /**
- * Langkah menyambungkan bot, berurutan: tautkan nomor, pilih grup, masa tenang lewat, pesan uji terkirim.
+ * Langkah menyambungkan bot, berurutan: tautkan nomor, pilih grup, pesan uji terkirim.
  * current: langkah pertama yang belum selesai (-1 bila semua selesai).
  */
-export function setupSteps({ linked, grouped, quiet, tested }) {
-  const done = [linked, linked && grouped, linked && !quiet, linked && grouped && !quiet && tested];
+export function setupSteps({ linked, grouped, tested }) {
+  const done = [linked, linked && grouped, linked && grouped && tested];
   return { done, current: done.indexOf(false), complete: done.every(Boolean) };
 }
 
@@ -36,19 +36,19 @@ export function testText() {
   ].join('\n');
 }
 
-/** Kotak "Info cuaca pagi". info: { morning: status hari ini, phase, group, enabled }. */
-function morningTile({ morning, phase, group, enabled }) {
+/** Kotak "Info cuaca pagi". info: { morning: status hari ini, group, enabled }. */
+function morningTile({ morning, group, enabled }) {
   const [value, sub, color] = morning === 'terkirim' ? ['Terkirim ✓', 'Sudah masuk grup hari ini', 'green']
     : !enabled ? ['Dimatikan', 'Bot hanya menjawab pertanyaan', 'slate']
     : morning === 'gagal' ? ['Belum terkirim', 'Kirim lewat tombol di bawah', 'red']
       : morning === 'mengirim' ? ['Sedang dikirim', 'Tunggu sebentar', 'amber']
-        : !group || phase === 'tenang' ? ['Belum aktif', 'Selesaikan langkah di bawah', 'amber']
+        : !group ? ['Belum aktif', 'Selesaikan langkah di bawah', 'amber']
           : ['Terjadwal', `Dikirim ${nextMorningText()}`, 'amber'];
   return { color, icon: ICONS.sun, label: 'Info cuaca pagi', value, sub };
 }
 
 /** Panduan menyambungkan bot langkah demi langkah, sampai pesan percobaan terkirim. */
-function setupCard({ done, current }, state, until, today) {
+function setupCard({ done, current }, state, today) {
   const steps = [
     {
       title: 'Tautkan nomor bot',
@@ -71,22 +71,13 @@ ${!done[0] ? '<p class="muted">Bisa dilakukan setelah langkah 1 selesai.</p>'
     : isConnected() ? `<a class="btn" href="/grup">${ICONS.users}Pilih grup</a>` : '<p class="warn">Tunggu sampai status bot <strong>Aktif</strong>, lalu muat ulang halaman ini.</p>'}`,
     },
     {
-      title: 'Tunggu 24 jam dulu',
-      body: done[2]
-        ? '<p>Sudah lewat 24 jam.</p>'
-        : done[0]
-          ? `<p>Nomor yang baru tertaut sebaiknya diam dulu supaya tidak dicurigai WhatsApp. Bot boleh mulai mengirim pada <strong>${esc(wibText(until))}</strong>.</p>
-<p class="muted">Tidak perlu melakukan apa-apa, cukup tunggu. Grup boleh dipilih sekarang.</p>`
-          : '<p class="muted">Dimulai sendiri setelah nomor tertaut. Selama 24 jam bot belum mengirim apa pun.</p>',
-    },
-    {
       title: 'Kirim pesan percobaan',
-      body: current === 3
+      body: current === 2
         ? `<p><strong>Gunanya:</strong> memastikan bot benar-benar bisa mengirim ke grup. Bot mengirim satu pesan perkenalan ini ke grup <strong>${esc(state.groupName)}</strong>:</p>
 <pre>${esc(testText())}</pre>
 <p>Setelah menekan tombol, buka grup di WhatsApp dan lihat apakah pesannya masuk.</p>
 <form method="post" action="/uji"><button type="submit">${ICONS.send}Kirim pesan percobaan</button></form>`
-        : '<p class="muted">Bisa dilakukan setelah langkah 1 sampai 3 selesai, untuk memastikan bot benar-benar bisa mengirim ke grup.</p>',
+        : '<p class="muted">Bisa dilakukan setelah langkah 1 dan 2 selesai, untuk memastikan bot benar-benar bisa mengirim ke grup.</p>',
     },
   ];
   const kind = (i) => (done[i] ? 'done' : i === current ? 'now' : 'later');
@@ -176,19 +167,18 @@ function activityCard(log) {
 /** message: pesan dari tindakan sebelumnya. main: status bot utama (hanya di mode develop), atau null. */
 export function dashboard(message, main = null) {
   const state = getState();
-  const { phase, until } = linkPhase();
   const today = nowWib().date;
 
   // Kotak ringkasan: bot di proses ini, bot utama (mode develop), atau tidak ada bot (mode manual)
   const live = !manualMode
     ? {
       status: wa.status, phone: wa.phone ?? state.phone, sent: state.sent?.date === today ? state.sent.count : 0,
-      ...sendLimits(phase), group: state.groupName, morning: state.morningSentOn === today ? state.morningStatus : null, phase,
+      ...sendLimits(), group: state.groupName, morning: state.morningSentOn === today ? state.morningStatus : null,
       enabled: state.morningEnabled !== false,
     }
     : main?.ok ? {
       status: main.status, phone: main.phone, sent: main.sentToday, perDay: main.perDay, perHour: main.perHour, group: main.groupName,
-      morning: main.morningStatus, phase: main.phase, enabled: main.morningEnabled !== false,
+      morning: main.morningStatus, enabled: main.morningEnabled !== false,
     } : null;
   const liveStatus = live && statusOf(live.status);
   const stats = tiles([
@@ -201,8 +191,7 @@ export function dashboard(message, main = null) {
     {
       color: 'blue', icon: ICONS.message, label: 'Pesan hari ini',
       value: live ? String(live.sent) : '–',
-      sub: !live ? 'Dikirim lewat WhatsApp sendiri'
-        : live.phase === 'pemanasan' ? `Nomor baru: maks ${live.perHour} pesan per jam` : `Batas aman ${live.perDay} pesan per hari`,
+      sub: !live ? 'Dikirim lewat WhatsApp sendiri' : `Batas aman ${live.perDay} pesan per hari`,
     },
     {
       color: 'violet', icon: ICONS.users, label: 'Grup penerima',
@@ -221,9 +210,9 @@ export function dashboard(message, main = null) {
     content = main ? devCard(main) : `<section class="card"><h2>${ICONS.send}Kirim manual</h2><p>Bot sedang tidak mengirim sendiri. Kirim info cuaca setiap pagi lewat tombol <strong>Buka teks cuaca hari ini</strong> di bagian atas.</p></section>`;
   } else {
     const setup = setupSteps({
-      linked: hasLinkedSession(), grouped: Boolean(state.groupJid), quiet: phase === 'tenang', tested: state.testedFor === testKey(state),
+      linked: hasLinkedSession(), grouped: Boolean(state.groupJid), tested: state.testedFor === testKey(state),
     });
-    content = setup.complete ? readyCards(state, today) : setupCard(setup, state, until, today) + scheduleCard(state);
+    content = setup.complete ? readyCards(state, today) : setupCard(setup, state, today) + scheduleCard(state);
     const status = statusOf(wa.status);
     const statusNote = !wa.error && status.kind !== 'ok' && setup.done[0] ? flash(status.text, 'warn') : '';
     notes = wa.error ? flash(wa.error, 'bad') : statusNote;

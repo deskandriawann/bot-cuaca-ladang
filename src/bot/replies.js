@@ -12,7 +12,7 @@ import { parseCall } from '../commands.js';
 import { nowWib, addDays } from '../time.js';
 import { getState, addLog } from '../store.js';
 import { markRead, isConnected } from '../whatsapp/connection.js';
-import { botSend, linkPhase, hourlyFreeAt } from './send.js';
+import { botSend, hourlyFreeAt } from './send.js';
 
 const BMKG_DAYS = 3;
 const MAX_DAYS = 10;
@@ -103,7 +103,7 @@ let waitLogged = false;
 
 /** Pesan grup dari wa: setiap panggilan di grup penerima masuk antrean dan dijawab satu per satu, kapan saja. */
 export async function handleGroupMessage({ jid, text, msg, at = Date.now() }) {
-  if (jid !== getState().groupJid || linkPhase().phase === 'tenang') return;
+  if (jid !== getState().groupJid) return;
   if (Date.now() - at > MAX_WAIT_MS) return; // pesan lama yang baru tersampaikan setelah bot lama terputus
   const today = nowWib(new Date(at)).date;
   const call = parseCall(text, config.botName, today);
@@ -133,7 +133,7 @@ async function work() {
     while (pending.length > 0) {
       const item = pending[0];
       const state = getState();
-      if (item.jid !== state.groupJid || linkPhase().phase === 'tenang') {
+      if (item.jid !== state.groupJid) {
         pending.shift();
         continue;
       }

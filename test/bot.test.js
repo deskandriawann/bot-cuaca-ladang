@@ -6,7 +6,7 @@ import { morningMessage, thanksMessage } from '../src/messages.js';
 import { updateState } from '../src/store.js';
 import { nowWib } from '../src/time.js';
 import { answer, replyText, rememberAnswer } from '../src/bot/replies.js';
-import { botSend, hourlyFreeAt, limitReason, linkPhase, sendLimits } from '../src/bot/send.js';
+import { botSend, hourlyFreeAt, limitReason, sendLimits } from '../src/bot/send.js';
 import { pendingAlerts } from '../src/bot/alerts.js';
 import { morningAt, morningDue, parseScheduleTime, stableJitter } from '../src/bot/schedule.js';
 import { bmkg, om, today, tomorrow, dayAfter, offline, sources, slot } from './helpers.js';
@@ -56,34 +56,23 @@ test('pesan otomatis tanpa tautan (tautan = sinyal spam); kirim manual boleh', a
   assert.match(await answer({ kind: 'help' }, today, sources), /deskripsi grup/);
 });
 
-test('tahap nomor: tenang, pemanasan, lalu normal', () => {
-  const linked = Date.parse('2026-11-01T00:00:00Z');
-  const hour = 60 * 60 * 1000;
-  assert.equal(linkPhase(null, linked).phase, 'normal');
-  assert.equal(linkPhase(new Date(linked).toISOString(), linked + 1 * hour).phase, 'tenang');
-  assert.equal(linkPhase(new Date(linked).toISOString(), linked + 25 * hour).phase, 'pemanasan');
-  assert.equal(linkPhase(new Date(linked).toISOString(), linked + (24 + 7 * 24 + 1) * hour).phase, 'normal');
-  assert.ok(sendLimits('pemanasan').perHour < sendLimits('normal').perHour);
-});
-
-test('batas kirim per jam (lebih ketat saat pemanasan) dan per hari', () => {
+test('batas kirim per jam dan per hari, juga untuk nomor yang baru tertaut', () => {
   const now = Date.parse('2026-11-02T05:00:00Z'); // 12.00 WIB
   const minutesAgo = (m) => now - m * 60_000;
-  const today = { date: '2026-11-02', count: 3 };
+  const { perHour, perDay } = sendLimits();
+  const today = { date: '2026-11-02', count: perHour };
 
-  // Pemanasan: 3 pesan dalam 1 jam terakhir → tunggu sampai pesan tertua lewat 1 jam (12.50 WIB)
-  const busy = { sent: today, recentSends: [minutesAgo(10), minutesAgo(5), minutesAgo(1)] };
-  assert.match(limitReason(busy, 'pemanasan', now), /3 pesan dalam 1 jam terakhir\. Bisa mengirim lagi pukul 12\.50 WIB/);
+  // Batas per jam tercapai → tunggu sampai pesan tertua lewat 1 jam (12.50 WIB)
+  const times = Array.from({ length: perHour }, (_, i) => minutesAgo(10 - i * (9 / perHour)));
+  const busy = { sent: today, recentSends: times };
+  assert.match(limitReason(busy, now), new RegExp(`${perHour} pesan dalam 1 jam terakhir\\. Bisa mengirim lagi pukul 12\\.50 WIB`));
   // Pesan yang sudah lewat 1 jam tidak dihitung: pagi yang ramai tidak membuat bot diam sampai besok
-  assert.equal(limitReason({ sent: today, recentSends: [minutesAgo(400), minutesAgo(300), minutesAgo(61)] }, 'pemanasan', now), null);
-  // Setelah pemanasan batas per jam lebih longgar
-  assert.equal(limitReason(busy, 'normal', now), null);
+  assert.equal(limitReason({ sent: today, recentSends: times.map((t) => t - 60 * 60_000) }, now), null);
   // Batas harian tetap berlaku
-  const perDay = config.maxMessagesPerDay;
-  assert.match(limitReason({ sent: { date: '2026-11-02', count: perDay }, recentSends: [] }, 'normal', now), new RegExp(`sudah mengirim ${perDay} pesan`));
+  assert.match(limitReason({ sent: { date: '2026-11-02', count: perDay }, recentSends: [] }, now), new RegExp(`sudah mengirim ${perDay} pesan`));
   // Antrean jawaban menunggu sampai batas per jam terbuka lagi
-  assert.equal(hourlyFreeAt(busy, 'pemanasan', now), minutesAgo(10) + 60 * 60_000);
-  assert.equal(hourlyFreeAt(busy, 'normal', now), null);
+  assert.equal(hourlyFreeAt(busy, now), minutesAgo(10) + 60 * 60_000);
+  assert.equal(hourlyFreeAt({ sent: today, recentSends: times.slice(1) }, now), null);
 });
 
 test('pertanyaan yang sama dalam 30 menit dijawab singkat "sudah dijawab", yang lain tetap lengkap', async () => {

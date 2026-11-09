@@ -10,7 +10,7 @@ Untuk pengurus Kelompok Tani Nawungan 2 yang memegang ponsel bot.
 
 ## Mengirim cuaca secara manual (selalu aman)
 
-Pakai bila bot otomatis tidak mengirim, sedang dalam masa tenang, atau nomornya diblokir.
+Pakai bila bot otomatis tidak mengirim atau nomornya diblokir.
 
 1. Buka halaman pengelola, ketuk **Buka teks cuaca hari ini**.
 2. Ketuk **Buka WhatsApp dan pilih grup**. Bila HP punya dua WhatsApp, pilih yang biasa dipakai di grup.
@@ -52,10 +52,9 @@ Butuh laptop atau HP lain untuk menampilkan QR. Halaman pengelola menampilkan ko
 
 1. **Tautkan nomor bot.** Buka halaman pengelola di laptop atau HP lain, masuk dengan kata sandi, ketuk **Tautkan nomor bot** (atau **Ganti nomor bot** bila sudah ada nomor). Isi nomor, centang semua persiapan, lalu ketuk **Mulai menautkan**. QR muncul. Di HP bot, buka WhatsApp Business: titik tiga → **Perangkat tertaut** → **Tautkan perangkat**, lalu pindai QR. Tunggu sampai halaman menampilkan **Nomor berhasil ditautkan**.
 2. **Masukkan bot ke grup, lalu pilih grupnya.** Admin grup menambahkan nomor bot ke grup (coba dulu di grup kecil 3-5 orang), dan mengeluarkan nomor lama bila ada. Sebelum bot masuk grup Kelompok Tani, admin mengumumkan dulu ke anggota agar nomornya tidak dilaporkan sebagai spam, dan menaruh tautan rincian BMKG di deskripsi grup. Lalu di halaman pengelola ketuk **Pilih grup**, pilih grupnya, dan **Simpan grup ini**.
-3. **Tunggu masa tenang 24 jam.** Nomor yang baru tertaut tidak boleh mengirim apa pun selama 24 jam. Tidak perlu melakukan apa-apa; halaman menuliskan jam selesainya.
-4. **Kirim pesan percobaan.** Gunanya memastikan bot benar-benar bisa mengirim ke grup. Ketuk **Kirim pesan percobaan**, lalu buka grup di WhatsApp dan pastikan pesan perkenalan dari bot masuk. Tombol ini hanya muncul saat menyambungkan nomor baru atau setelah grup penerima diganti.
+3. **Kirim pesan percobaan.** Gunanya memastikan bot benar-benar bisa mengirim ke grup. Ketuk **Kirim pesan percobaan**, lalu buka grup di WhatsApp dan pastikan pesan perkenalan dari bot masuk. Tombol ini hanya muncul saat menyambungkan nomor baru atau setelah grup penerima diganti.
 
-Setelah keempat langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Selama **7 hari masa pemanasan** setelah masa tenang, bot mengirim paling banyak 3 pesan per jam (termasuk ringkasan pagi) dan belum mengirim peringatan mendadak; pertanyaan di atas batas itu menunggu giliran dan dijawab begitu batasnya terbuka lagi (tercatat di **Kegiatan bot terbaru**). Setelah pemanasan, semua fitur berjalan.
+Setelah ketiga langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Nomor yang baru tertaut langsung bisa dipakai, tanpa masa tunggu. Karena itu, siapkan nomor baru lebih dulu seperti di atas, dan mulai di grup kecil.
 
 Setiap panggilan "halo tani" dijawab dengan membalas pesan penanya, satu per satu dan kapan saja. Bila grup sedang ramai, jawabannya berjarak sekitar setengah menit. Pertanyaan yang sama dalam 30 menit (misalnya tiga orang menanyakan cuaca besok) dijawab lengkap sekali, sisanya dijawab singkat "sudah dijawab di atas".
 

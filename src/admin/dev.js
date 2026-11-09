@@ -8,7 +8,7 @@ import { config } from '../config.js';
 import { nowWib } from '../time.js';
 import { getState, addLog } from '../store.js';
 import { wa } from '../whatsapp/connection.js';
-import { botSend, linkPhase, sendLimits } from '../bot/send.js';
+import { botSend, sendLimits } from '../bot/send.js';
 import { readJson, sendJson } from './http.js';
 import { fromLoopback } from './security.js';
 import { esc } from './layout.js';
@@ -52,7 +52,6 @@ export async function apiRoute(req, res, url) {
 
   if (req.method === 'GET' && url.pathname === '/api/status') {
     const state = getState();
-    const { phase } = linkPhase();
     const today = nowWib().date;
     return sendJson(res, 200, {
       status: wa.status,
@@ -61,10 +60,9 @@ export async function apiRoute(req, res, url) {
       error: wa.error,
       groupName: state.groupName,
       sentToday: state.sent?.date === today ? state.sent.count : 0,
-      ...sendLimits(phase),
+      ...sendLimits(),
       morningStatus: state.morningSentOn === today ? state.morningStatus : null,
       morningEnabled: state.morningEnabled !== false,
-      phase,
     });
   }
   if (req.method === 'POST' && url.pathname === '/api/kirim') {
