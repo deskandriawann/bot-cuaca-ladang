@@ -97,6 +97,7 @@ src/
     static/             admin.css dan admin.js (tanpa sisipan di halaman)
 scripts/preview.js      contoh pesan tanpa WhatsApp
 scripts/dev.js          mode develop (npm run dev): muat ulang otomatis, tanpa WhatsApp
+scripts/kirim.js        mengirim perubahan ke server (npm run kirim)
 test/                   pengujian per bagian; data contoh asli di test/fixtures, data uji bersama di test/helpers.js
 deploy/                 layanan systemd (dibatasi: tanpa sudo, hanya menulis di data/)
 .github/workflows/      cek otomatis di GitHub (npm run check)
@@ -146,6 +147,19 @@ Jangan pakai `node --watch` untuk `npm start`: setiap muat ulang berarti sambung
 
 `.gitignore` menahan `.env` (kata sandi) dan `data/` (sesi WhatsApp): siapa pun yang memegang `data/` bisa memakai nomor bot. Sebelum commit pertama, pastikan keduanya tidak ikut dengan `git status`. Setiap push menjalankan `npm run check` di GitHub Actions ([.github/workflows/cek.yml](.github/workflows/cek.yml)); tanda centang hijau di GitHub berarti kode siap dipasang.
 
+### Mengirim perubahan ke server
+
+Setelah mengubah kode di laptop, cukup satu perintah dari folder proyek:
+
+```bash
+npm run kirim -- "pesan singkat perubahan"   # ada perubahan yang belum di-commit
+npm run kirim                                # semua perubahan sudah di-commit
+```
+
+Urutannya: periksa kode (`npm run check`; bila gagal, berhenti dan server tidak diubah) → commit → push ke GitHub → server menjalankan `git pull`, memasang ulang paket bila `package-lock.json` berubah, menyalakan ulang bot, lalu menunggu sampai bot tersambung lagi ke WhatsApp. Bila server sudah memakai versi terbaru, bot tidak dinyalakan ulang.
+
+Butuh alias SSH `infocuacatani` di `~/.ssh/config` laptop (server lain: isi `DEPLOY_HOST` dan `DEPLOY_DIR`). Setiap kirim berarti bot menyambung ulang ke WhatsApp, jadi kumpulkan perubahan lalu kirim sekaligus, bukan berkali-kali sejam. `.env` di server tidak ikut berubah; pengaturan di sana diubah dengan `ssh infocuacatani`, lalu `nano ~/bot-cuaca/.env`.
+
 ## Pemasangan di Oracle Cloud Always Free
 
 Komunitas pengembang menganggap IP server cloud lebih dicurigai WhatsApp daripada koneksi rumah (tidak pernah dinyatakan resmi).
@@ -165,7 +179,7 @@ Bila tetap memakai cloud, pilih region terdekat (misalnya Indonesia North (Batam
    cp .env.example .env && nano .env   # isi ADMIN_PASSWORD; ADMIN_HOST tetap 127.0.0.1
    chmod 600 .env                      # hanya pemilik yang bisa membaca
    ```
-   Memperbarui kode nanti: `git pull && npm ci --omit=dev && sudo systemctl restart bot-cuaca`. Setiap restart berarti sambung ulang ke WhatsApp, jadi perbarui sekaligus, bukan berkali-kali sehari.
+   Memperbarui kode nanti: dari laptop `npm run kirim` (lihat [Mengirim perubahan ke server](#mengirim-perubahan-ke-server)), atau di server `git pull && npm ci --omit=dev && sudo systemctl restart bot-cuaca`. Setiap restart berarti sambung ulang ke WhatsApp, jadi perbarui sekaligus, bukan berkali-kali sehari.
 4. Jalankan sebagai layanan:
    ```bash
    sudo cp deploy/bot-cuaca.service /etc/systemd/system/

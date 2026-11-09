@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "check": "npm run lint && npm test && npm audit --omit=dev",
-    "preview": "node scripts/preview.js"
+    "preview": "node scripts/preview.js",
+    "kirim": "node scripts/kirim.js"
   },
   "engines": {
     "node": ">=20.12"
