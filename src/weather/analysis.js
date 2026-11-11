@@ -1,5 +1,6 @@
 // Penilaian kondisi cuaca: hujan, petir, angin kencang, dan peluang hujan.
 import { config } from '../config.js';
+import { addDays } from '../time.js';
 
 // Penilaian memakai teks keterangan BMKG (weather_desc), bukan kode angka: di API publik
 // kode 61 berketerangan "Hujan Ringan" dan 63 "Hujan Sedang", berbeda dari tabel kode yang sering dikutip.
@@ -27,6 +28,24 @@ const WORK_START = 6;
 const WORK_END = 18;
 export const SLOT_HOURS = 3;
 export const isFieldSlot = (slot) => slot.hour < WORK_END && slot.hour + SLOT_HOURS > WORK_START;
+
+/** Dini hari sesudah tanggal ini (slot tanggal berikutnya yang mulai sebelum 06.00), ditandai lateNight. */
+export function lateNightSlots(days, date) {
+  return (days[addDays(date, 1)] ?? []).filter((s) => s.hour < WORK_START).map((s) => ({ ...s, lateNight: true }));
+}
+
+/** Malam sesudah jam kerja sampai dini hari nanti: slot mulai 18.00 tanggal ini, lalu dini hari sesudahnya. */
+export function nightSlots(days, date) {
+  return [...(days[date] ?? []).filter((s) => s.hour >= WORK_END), ...lateNightSlots(days, date)];
+}
+
+/**
+ * Yang dilaporkan untuk satu tanggal: jam kerja, ditambah malam dan dini hari nanti hanya bila hujan
+ * (hujan malam ikut menentukan hasil siram dan pupuk sore). Malam yang kering tidak disebut, agar pesan tetap pendek.
+ */
+export function reportSlots(days, date) {
+  return [...fieldSlots(days[date] ?? []), ...nightSlots(days, date).filter(isRain)];
+}
 
 export const PERIODS = [
   { name: 'Pagi', from: 6, to: 12 },
@@ -130,10 +149,10 @@ export function tempRange(slots) {
   return [Math.min(...temps), Math.max(...temps)];
 }
 
-/** Kunci bahaya untuk membandingkan prakiraan lama dan baru: 'YYYY-MM-DD 15 petir' */
+/** Kunci bahaya untuk membandingkan prakiraan lama dan baru: 'YYYY-MM-DD 15 petir'. slots: yang dilaporkan (reportSlots). */
 export function alertKeys(slots) {
   const keys = [];
-  for (const slot of fieldSlots(slots)) {
+  for (const slot of slots) {
     for (const type of hazardsOf(slot)) {
       if (ALERT_TYPES.has(type)) keys.push(`${slot.date} ${slot.hour} ${type}`);
     }

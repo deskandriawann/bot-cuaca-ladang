@@ -1,14 +1,15 @@
 // Mengirim perubahan kode ke server: periksa kode, simpan (commit), unggah ke GitHub, lalu server mengambilnya
 // dan menyalakan ulang bot. Bot di laptop tidak ikut dijalankan.
-// Pakai: npm run kirim -- "pesan singkat perubahan"   (ada perubahan yang belum di-commit)
-//        npm run kirim                                (semua perubahan sudah di-commit)
+// Pakai: npm run kirim                                (pesan perubahan ditanyakan bila ada yang belum di-commit)
+//        npm run kirim -- "pesan singkat perubahan"   (pesan langsung ditulis; perhatikan spasi sesudah --)
 // Server dipanggil lewat alias SSH di ~/.ssh/config. Bawaan: infocuacatani, folder ~/bot-cuaca
 // (ganti dengan DEPLOY_HOST dan DEPLOY_DIR bila servernya lain).
 import { spawnSync } from 'node:child_process';
+import readline from 'node:readline/promises';
 
 const host = process.env.DEPLOY_HOST || 'infocuacatani';
 const dir = process.env.DEPLOY_DIR || '~/bot-cuaca';
-const message = process.argv.slice(2).join(' ').trim();
+let message = process.argv.slice(2).join(' ').trim();
 
 function stop(text) {
   console.error(`\n❌ ${text}`);
@@ -25,13 +26,18 @@ function run(cmd, args, { quiet = false, shell = false } = {}) {
 const git = (...args) => run('git', args, { quiet: true });
 const step = (text) => console.log(`\n▶ ${text}`);
 
-// 1. Hanya dari cabang main, dan perubahan yang belum disimpan perlu pesan
+// 1. Hanya dari cabang main, dan perubahan yang belum disimpan perlu pesan (ditanyakan bila belum ditulis)
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD').out;
 if (branch !== 'main') stop(`Sedang di cabang "${branch}". Pindah dulu ke main: git checkout main`);
 const changes = git('status', '--porcelain').out;
 if (changes && !message) {
-  console.log('Ada perubahan yang belum disimpan:\n' + changes);
-  stop('Tulis pesan singkat perubahannya, misalnya:\n   npm run kirim -- "Ganti kalimat jawaban terima kasih"');
+  console.log(`Ada perubahan yang belum disimpan:\n ${changes}`);
+  if (process.stdin.isTTY) {
+    const ask = readline.createInterface({ input: process.stdin, output: process.stdout });
+    message = (await ask.question('\nTulis pesan singkat perubahannya, lalu tekan Enter: ')).trim();
+    ask.close();
+  }
+  if (!message) stop('Pesan perubahan masih kosong. Ulangi, misalnya:\n   npm run kirim -- "Ganti kalimat jawaban terima kasih"');
 }
 
 // 2. Periksa kode lebih dulu: kode yang gagal pemeriksaan tidak sampai ke server

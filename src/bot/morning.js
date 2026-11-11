@@ -1,7 +1,7 @@
 // Ringkasan cuaca pagi: data cuaca gabungan, teks ringkasan, dan pengirimannya ke grup.
 import { logger } from '../log.js';
 import { fetchBmkg, fetchOpenMeteo, fetchEnsemble } from '../weather/sources.js';
-import { alertKeys, withRainChance, fieldSlots } from '../weather/analysis.js';
+import { alertKeys, withRainChance, fieldSlots, reportSlots } from '../weather/analysis.js';
 import { morningMessage, unavailableMessage } from '../messages.js';
 import { nowWib } from '../time.js';
 import { getState, updateState, addLog, logForecast } from '../store.js';
@@ -25,7 +25,8 @@ export async function fetchWeather({ maxAgeMs } = {}) {
 export async function buildMorning(date = nowWib().date, { maxAgeMs } = {}) {
   const bmkg = await fetchWeather({ maxAgeMs });
   const slots = bmkg.days[date] ?? [];
-  return { text: morningMessage(bmkg, date, nowWib().hour), keys: alertKeys(slots), slots };
+  // Bahaya yang sudah disebut di ringkasan (termasuk dini hari nanti) tidak diumumkan lagi sebagai perubahan
+  return { text: morningMessage(bmkg, date, nowWib().hour), keys: alertKeys(reportSlots(bmkg.days, date)), slots };
 }
 
 /** Prakiraan jam kerja yang dikirim pagi ini dicatat, untuk dinilai ketepatannya kelak. */

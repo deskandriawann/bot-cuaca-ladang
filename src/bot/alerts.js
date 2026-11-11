@@ -1,6 +1,6 @@
 // Pemberitahuan perubahan mendadak (bahaya baru dari BMKG) dan pengingat menjelang hujan lebat.
 import { config } from '../config.js';
-import { alertKeys, isHeavyRain, isFieldSlot, SLOT_HOURS } from '../weather/analysis.js';
+import { alertKeys, isHeavyRain, reportSlots, SLOT_HOURS } from '../weather/analysis.js';
 import { updateMessage, rainSoonMessage } from '../messages.js';
 import { nowWib } from '../time.js';
 import { getState, updateState, addLog } from '../store.js';
@@ -10,13 +10,13 @@ import { fetchWeather } from './morning.js';
 const soonKey = (slot) => `${slot.date} ${slot.hour} segera`;
 
 /**
- * Yang perlu dikirim saat pemeriksaan per jam:
- *   fresh: bahaya yang baru muncul di prakiraan (hujan lebat hanya bila pasti), belum diumumkan
- *   soon:  hujan lebat atau hujan petir pasti yang mulai jam ini atau jam berikutnya, belum diingatkan
+ * Yang perlu dikirim saat pemeriksaan per jam. remaining: slot yang dilaporkan dan belum lewat (reportSlots).
+ *   fresh: bahaya yang baru muncul di prakiraan (hujan lebat hanya bila pasti), belum diumumkan; termasuk dini hari nanti
+ *   soon:  hujan lebat atau hujan petir pasti hari ini yang mulai jam ini atau jam berikutnya, belum diingatkan
  */
 export function pendingAlerts(remaining, announced, hour) {
   const fresh = alertKeys(remaining).filter((key) => !announced.includes(key));
-  const soon = remaining.find((s) => isFieldSlot(s) && (s.hour === hour || s.hour === hour + 1)
+  const soon = remaining.find((s) => !s.lateNight && (s.hour === hour || s.hour === hour + 1)
     && isHeavyRain(s) && !announced.includes(soonKey(s)));
   return { fresh, soon: soon ?? null };
 }
@@ -34,7 +34,7 @@ export async function checkChanges() {
   if (alerts.updates >= config.maxUpdatesPerDay) return;
 
   const bmkg = await fetchWeather({ maxAgeMs: 0 });
-  const remaining = (bmkg.days[now.date] ?? []).filter((s) => s.hour + SLOT_HOURS > now.hour);
+  const remaining = reportSlots(bmkg.days, now.date).filter((s) => s.lateNight || s.hour + SLOT_HOURS > now.hour);
   const { fresh, soon } = pendingAlerts(remaining, alerts.keys, now.hour);
   if (fresh.length === 0 && !soon) return;
 

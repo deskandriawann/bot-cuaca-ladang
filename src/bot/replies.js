@@ -24,7 +24,7 @@ const RECHECK_MS = 30_000;               // jeda memeriksa lagi saat bot terputu
 /** Menyusun jawaban untuk satu panggilan. Sumber data bisa diganti untuk pengujian. */
 export async function answer(call, today, { getBmkg = fetchBmkg, getOm = fetchOpenMeteo, getEnsemble = fetchEnsemble } = {}) {
   if (call.kind === 'help') return helpMessage(today);
-  if (call.kind === 'unknown') return unknownMessage(today);
+  if (call.kind === 'unknown') return unknownMessage(today, call.question);
   if (call.kind === 'past') return pastMessage();
   if (call.kind === 'thanks') return thanksMessage();
   if (call.kind === 'too_far' || (call.kind === 'day' && call.offset >= MAX_DAYS)) return tooFarMessage(today);
@@ -83,7 +83,7 @@ export async function replyText({ jid, call, today }, sources) {
     if (call.kind === 'day') return { text: alreadyAnsweredMessage(daySubject(addDays(today, call.offset), call.offset), last.hhmm) };
     if (call.kind === 'outlook') return { text: alreadyAnsweredMessage(OUTLOOK_SUBJECT, last.hhmm) };
     if (call.kind === 'help') return { text: helpAgainMessage(today, last.hhmm) };
-    return { text: notUnderstoodAgainMessage(today, last.hhmm) };
+    return { text: notUnderstoodAgainMessage(today, last.hhmm, call.question) };
   }
   const text = await answer(call, today, sources);
   // Data gagal diambil tidak dicatat, agar pertanyaan berikutnya mencoba lagi
@@ -101,12 +101,15 @@ const seen = new Set(); // id pesan yang sudah masuk antrean (pesan bisa datang 
 let working = false;
 let waitLogged = false;
 
-/** Pesan grup dari wa: setiap panggilan di grup penerima masuk antrean dan dijawab satu per satu, kapan saja. */
-export async function handleGroupMessage({ jid, text, msg, at = Date.now() }) {
+/**
+ * Pesan grup dari wa: setiap panggilan di grup penerima masuk antrean dan dijawab satu per satu, kapan saja.
+ * mentioned: nomor bot di-tag, jadi pesannya dianggap panggilan walau tanpa "halo <nama bot>".
+ */
+export async function handleGroupMessage({ jid, text, msg, at = Date.now(), mentioned = false }) {
   if (jid !== getState().groupJid) return;
   if (Date.now() - at > MAX_WAIT_MS) return; // pesan lama yang baru tersampaikan setelah bot lama terputus
   const today = nowWib(new Date(at)).date;
-  const call = parseCall(text, config.botName, today);
+  const call = parseCall(text, config.botName, today, { mentioned });
   if (!call) return;
 
   const id = msg?.key?.id;

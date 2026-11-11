@@ -4,7 +4,7 @@
 // setiap baris diawali satu ikon agar mudah dipindai, kalimat pendek, dan jam ditulis "pukul 15.00".
 import { config } from './config.js';
 import {
-  PERIODS, fieldSlots, worstSlot, strongestWind, tempRange, hazardsOf,
+  PERIODS, fieldSlots, lateNightSlots, reportSlots, worstSlot, strongestWind, tempRange, hazardsOf,
   hazardLabel, condition, isRain, isThunder, isSureRain, isRainWarning, windFromText, windFromDegrees, wmoText,
 } from './weather/analysis.js';
 import { HARI, BULAN, addDays, weekdayIndex, longDate, shortDate, hourLabel, pad } from './time.js';
@@ -56,7 +56,9 @@ function rangeText([min, max], unit = '') {
 }
 
 const tempText = (range) => rangeText(range, '°C');
-const timesText = (slots) => joinList(slots.map((s) => hourLabel(s.hour)));
+/** '15.00', atau '03.00 dini hari' untuk dini hari sesudah tanggal yang dilaporkan (bukan dini hari tadi). */
+const timeLabel = (slot) => `${hourLabel(slot.hour)}${slot.lateNight ? ' dini hari' : ''}`;
+const timesText = (slots) => joinList(slots.map(timeLabel));
 
 /** ' (peluang 40-60%)' dari peluang hujan slot-slot, atau kosong bila tidak ada datanya. */
 function chanceText(slots) {
@@ -150,17 +152,23 @@ function nextTip(dayIndex) {
  * Peringatan tambahan untuk hujan sedang, lebat, atau hujan petir yang pasti.
  * Hujan ringan dan hujan yang belum pasti tidak masuk sini, cukup jadi info di conditionLines.
  */
-function rainWarningLines(slots) {
-  const field = fieldSlots(slots);
-  const sure = (field.length > 0 ? field : slots).filter(isRainWarning);
+function rainWarningLines(scope) {
+  const sure = scope.filter(isRainWarning);
   if (sure.length === 0) return [];
-  return ['⚠️ *POTENSI HUJAN*', ...sure.map((s) => `${slotEmoji(s)} *${sentence(s.desc)}* sekitar pukul ${hourLabel(s.hour)}${chanceText(s)}`)];
+  return ['⚠️ *POTENSI HUJAN*', ...sure.map((s) => `${slotEmoji(s)} *${sentence(s.desc)}* sekitar pukul ${timeLabel(s)}${chanceText(s)}`)];
 }
 
-/** Hujan, petir, dan angin untuk satu hari data BMKG. */
-function conditionLines(slots) {
-  const field = fieldSlots(slots);
-  const scope = field.length > 0 ? field : slots;
+/**
+ * Yang dilaporkan untuk satu tanggal: jam kerja, ditambah malam dan dini hari nanti hanya bila hujan (reportSlots).
+ * Bila jam kerja sudah lewat (ditanya malam hari), semua slot tanggal itu ditambah hujan dini hari nanti.
+ */
+function scopeOf(bmkg, date) {
+  if (fieldSlots(bmkg.days[date]).length > 0) return reportSlots(bmkg.days, date);
+  return [...bmkg.days[date], ...lateNightSlots(bmkg.days, date).filter(isRain)];
+}
+
+/** Hujan, petir, dan angin untuk waktu yang dilaporkan (lihat scopeOf). */
+function conditionLines(scope) {
   const rainy = scope.filter(isRain);
   // Hujan yang sudah masuk "potensi hujan" tidak diulang; sisanya hanya info, "mungkin" bila belum pasti
   const info = rainy.filter((s) => !isRainWarning(s));
@@ -199,6 +207,17 @@ export function morningMessage(bmkg, date, hour = 5) {
     periods.push(`${PERIOD_EMOJI[period.name]} ${period.name} (${pad(period.from)}-${pad(period.to)}): ` +
       `${slotEmoji(worst)} ${sentence(worst.desc)}, ${tempText(tempRange(inPeriod))}`);
   }
+  // Malam dan dini hari nanti (tanggal berikutnya, bukan dini hari tadi) hanya disebut bila hujan, agar pesan tetap pendek
+  const night = [
+    ['🌙 Malam (18-24)', slots.filter((s) => s.hour >= 18)],
+    ['🌌 Dini hari nanti (00-06)', lateNightSlots(bmkg.days, date)],
+  ];
+  for (const [label, part] of night) {
+    if (!part.some(isRain)) continue;
+    const worst = worstSlot(part);
+    periods.push(`${label}: ${slotEmoji(worst)} ${sentence(worst.desc)}, ${tempText(tempRange(part))}`);
+  }
+  const scope = scopeOf(bmkg, date);
   return [
     '🌾 *INFO CUACA HARI INI*',
     `${greeting(hour)}, Bapak/Ibu ${config.groupLabel} 🙏`,
@@ -206,9 +225,9 @@ export function morningMessage(bmkg, date, hour = 5) {
     `📍 ${bmkg.place}`,
     `📅 ${longDate(date)}`,
     '',
-    ...block(rainWarningLines(slots)),
+    ...block(rainWarningLines(scope)),
     ...block(periods),
-    ...block(conditionLines(slots)),
+    ...block(conditionLines(scope)),
     ...footer('bmkg', slots, morningTip(date)),
   ].join('\n');
 }
@@ -216,19 +235,21 @@ export function morningMessage(bmkg, date, hour = 5) {
 export function dayDetailMessage(bmkg, date, dayIndex) {
   const slots = bmkg.days[date];
   if (!slots?.length) return unavailableMessage();
-  // Rincian per 3 jam untuk siang hari saja; malam hanya bila tidak ada yang tersisa (ditanya larut malam)
+  // Rincian per 3 jam sampai pukul 18.00, lalu malam dan dini hari nanti hanya jam yang hujan.
+  // Ditanya malam hari (jam kerja sudah lewat): sisa jam hari itu.
+  const scope = scopeOf(bmkg, date);
   const daytime = slots.filter((s) => s.hour >= 6 && s.hour <= 18);
-  const shown = daytime.length > 0 ? daytime : slots;
-  const hours = shown.map((s) => `*${hourLabel(s.hour)}*  ${slotEmoji(s)} ${sentence(s.desc)}, ${s.temp}°C${hazardsOf(s).length > 0 ? ' ⚠️' : ''}`);
+  const shown = daytime.length > 0 ? [...daytime, ...scope.filter((s) => s.lateNight || s.hour > 18)] : scope;
+  const hours = shown.map((s) => `*${timeLabel(s)}*  ${slotEmoji(s)} ${sentence(s.desc)}, ${s.temp}°C${hazardsOf(s).length > 0 ? ' ⚠️' : ''}`);
   const humidity = shown.map((s) => s.humidity);
   return [
     `🌾 *CUACA ${whenText(dayIndex).toUpperCase()}*`,
     `📍 ${bmkg.place}`,
     `📅 ${longDate(date)}`,
     '',
-    ...block(rainWarningLines(slots)),
+    ...block(rainWarningLines(scope)),
     ...block(hours),
-    ...conditionLines(slots),
+    ...conditionLines(scope),
     `💧 Kelembapan ${rangeText([Math.min(...humidity), Math.max(...humidity)], '%')}`,
     '',
     ...footer('bmkg', slots, nextTip(dayIndex)),
@@ -288,13 +309,14 @@ export function outlookMessage(bmkg, om, dates) {
 
 /**
  * Pemberitahuan perubahan mendadak.
- * remaining: slot BMKG hari ini yang belum lewat; newKeys: ['YYYY-MM-DD 15 petir', ...]
+ * remaining: slot yang dilaporkan dan belum lewat (termasuk dini hari nanti); newKeys: ['YYYY-MM-DD 15 petir', ...]
  */
 export function updateMessage(place, remaining, newKeys, nowHhmm) {
   const items = newKeys.map((key) => {
-    const [, hour, type] = key.split(' ');
-    const slot = remaining.find((s) => s.hour === Number(hour));
-    return `${HAZARD_EMOJI[type]} ${hazardLabel(type)} sekitar pukul ${hourLabel(Number(hour))}${slot && type !== 'angin' ? chanceText(slot) : ''}`;
+    const [date, hour, type] = key.split(' ');
+    const slot = remaining.find((s) => s.date === date && s.hour === Number(hour));
+    return `${HAZARD_EMOJI[type]} ${hazardLabel(type)} sekitar pukul ${slot ? timeLabel(slot) : hourLabel(Number(hour))}` +
+      `${slot && type !== 'angin' ? chanceText(slot) : ''}`;
   });
   return [
     '⚠️ *PERINGATAN CUACA*',
@@ -341,6 +363,7 @@ export function helpMessage(today) {
     `🗓️ *halo ${n} 10 hari* → ringkasan 10 hari ke depan`,
     '',
     `🗣️ Boleh juga bahasa Jawa, misalnya *halo ${n} sesuk* atau *halo ${n} setu*.`,
+    `🏷️ Bisa juga tanpa *halo ${n}*: tag nomor bot (ketik @ lalu pilih bot), lalu tulis pertanyaannya.`,
     'ℹ️ Hari 1-3 dari BMKG, hari 4-10 gambaran umum dari Open-Meteo.',
     ...(config.linkInAutoMessages ? linkLines() : ['🔗 Rincian lengkap: tautan BMKG di deskripsi grup.']),
   ].join('\n');
@@ -373,24 +396,48 @@ export function pastMessage() {
   ].join('\n');
 }
 
-export function unknownMessage(today) {
-  const opening = vary('belum-paham', [
-    '🤔 Maaf, bot belum paham pertanyaannya.',
-    '🙏 Maaf, bot belum mengerti maksudnya.',
-    '🤔 Pertanyaannya belum dikenali bot.',
-  ]);
-  return `${opening}\n\n${helpMessage(today)}`;
+/**
+ * Pertanyaan anggota untuk diulang di jawaban: tanpa tautan (tautan di pesan bot = sinyal spam) dan tanda format
+ * WhatsApp, paling banyak 60 huruf.
+ */
+function questionText(question) {
+  const clean = String(question ?? '')
+    .replace(/https?:\/\/\S+|www\.\S+/gi, ' ')
+    .replace(/[*_~`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const chars = [...clean];
+  return chars.length > 60 ? `${chars.slice(0, 57).join('').trimEnd()}...` : clean;
+}
+
+/** question: kalimat yang tidak dikenali, diulang agar penanya tahu pertanyaan mana yang belum bisa dijawab. */
+export function unknownMessage(today, question) {
+  const q = questionText(question);
+  const opening = q
+    ? vary('belum-paham', [
+      `🤔 Maaf, bot belum bisa memahami dan menjawab pertanyaan mengenai “${q}”.`,
+      `🙏 Maaf, bot belum mengerti maksud “${q}”.`,
+      `🤔 Pertanyaan “${q}” belum bisa dijawab bot.`,
+    ])
+    : vary('belum-paham', [
+      '🤔 Maaf, bot belum paham pertanyaannya.',
+      '🙏 Maaf, bot belum mengerti maksudnya.',
+      '🤔 Pertanyaannya belum dikenali bot.',
+    ]);
+  return `${opening}\nBot hanya bisa menjawab soal cuaca.\n\n${helpMessage(today)}`;
 }
 
 /** Pertanyaan tidak dikenali, padahal cara bertanya baru saja dikirim (pukul hhmm): cukup contoh singkat. */
-export function notUnderstoodAgainMessage(today, hhmm) {
+export function notUnderstoodAgainMessage(today, hhmm, question) {
   const n = config.botName;
   const { weekday, day } = examples(today);
+  const q = questionText(question);
+  const about = q ? ` “${q}”` : '';
   return vary('belum-paham-lagi', [
-    `🤔 Maaf, bot belum paham pertanyaannya. Sebut saja harinya, misalnya *halo ${n} besok* atau *halo ${n} ${weekday}*.`,
-    `🙏 Bot belum paham maksudnya, Bapak/Ibu. Cara bertanya sudah dikirim di atas pukul ${hhmm} WIB.`,
-    `🤔 Belum paham pertanyaannya. Coba misalnya *halo ${n} lusa* atau *halo ${n} tanggal ${day}*.`,
-    `🙏 Maaf, bot belum mengerti. Contoh yang bisa dijawab: *halo ${n} besok* atau *halo ${n} 10 hari*.`,
+    `🤔 Maaf, bot belum paham pertanyaan${about || 'nya'}. Sebut saja harinya, misalnya *halo ${n} besok* atau *halo ${n} ${weekday}*.`,
+    `🙏 Bot belum paham maksud${about || 'nya'}, Bapak/Ibu. Cara bertanya sudah dikirim di atas pukul ${hhmm} WIB.`,
+    `🤔 Belum paham pertanyaan${about || 'nya'}. Coba misalnya *halo ${n} lusa* atau *halo ${n} tanggal ${day}*.`,
+    `🙏 Maaf, bot belum mengerti${about}. Contoh yang bisa dijawab: *halo ${n} besok* atau *halo ${n} 10 hari*.`,
   ]);
 }
 

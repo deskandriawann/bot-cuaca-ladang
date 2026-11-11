@@ -56,7 +56,9 @@ Butuh laptop atau HP lain untuk menampilkan QR. Halaman pengelola menampilkan ko
 
 Setelah ketiga langkah selesai, halaman menulis **Bot sudah siap**, dan bot mengirim ringkasan cuaca sendiri setiap pagi. Nomor yang baru tertaut langsung bisa dipakai, tanpa masa tunggu. Karena itu, siapkan nomor baru lebih dulu seperti di atas, dan mulai di grup kecil.
 
-Setiap panggilan "halo tani" dijawab dengan membalas pesan penanya, satu per satu dan kapan saja. Bila grup sedang ramai, jawabannya berjarak sekitar setengah menit. Pertanyaan yang sama dalam 30 menit (misalnya tiga orang menanyakan cuaca besok) dijawab lengkap sekali, sisanya dijawab singkat "sudah dijawab di atas".
+Anggota bisa memanggil dengan "halo tani ..." atau dengan men-tag nomor bot (ketik @ lalu pilih bot) dan menulis pertanyaannya. Salah ketik ringan tetap dikenali. Bila pertanyaannya bukan soal cuaca, bot menjawab bahwa pertanyaan itu belum bisa dipahami, sambil menyebut pertanyaannya.
+
+Setiap panggilan dijawab dengan membalas pesan penanya, satu per satu dan kapan saja. Bila grup sedang ramai, jawabannya berjarak sekitar setengah menit. Pertanyaan yang sama dalam 30 menit (misalnya tiga orang menanyakan cuaca besok) dijawab lengkap sekali, sisanya dijawab singkat "sudah dijawab di atas".
 
 Nomor bot dan grup tujuan bisa diganti kapan saja lewat tombol **Ganti nomor bot** dan **Ganti grup tujuan** di kotak **Pengaturan bot**. Bila nomornya berbeda, grup tujuan perlu dipilih lagi.
 

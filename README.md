@@ -7,13 +7,13 @@ Bot mengirim informasi cuaca ke grup WhatsApp Kelompok Tani Nawungan 2.
 
 | Fitur | Waktu | Sumber |
 | --- | --- | --- |
-| Ringkasan pagi (informasi saja, tanpa saran): cuaca pagi/siang/sore, hujan, petir, angin, suhu. Bisa dimatikan dari halaman pengelola | Setiap hari pukul 05.00 WIB | BMKG |
-| Pemberitahuan perubahan mendadak (hujan lebat pasti, petir, angin kencang baru) dan pengingat menjelang hujan lebat | Dicek tiap jam 06.00-18.00, paling banyak 3 kali sehari | BMKG, peluang hujan gabungan 5 model cuaca dunia |
+| Ringkasan pagi (informasi saja, tanpa saran): cuaca pagi/siang/sore, hujan, petir, angin, suhu; malam dan dini hari nanti hanya disebut bila hujan. Bisa dimatikan dari halaman pengelola | Setiap hari pukul 05.00 WIB | BMKG |
+| Pemberitahuan perubahan mendadak (hujan lebat pasti, petir, angin kencang baru) dan pengingat menjelang hujan lebat | Dicek tiap jam 06.00-19.00 (hujan malam dan dini hari nanti ikut diperiksa), paling banyak 3 kali sehari | BMKG, peluang hujan gabungan 5 model cuaca dunia |
 | Cek cuaca hari ke-1 sampai ke-3, rincian per 3 jam | Saat dipanggil | BMKG |
 | Cek cuaca hari ke-4 sampai ke-10, gambaran singkat | Saat dipanggil | Open-Meteo |
 | Halaman pengelola: daftarkan nomor, pilih grup, status, pesan uji | Kapan saja | - |
 
-Cara memanggil di grup: awali dengan **halo tani** (pesan tanpa sapaan diabaikan), lalu tulis bebas. Hari yang ditanya dikenali sendiri dari kalimatnya:
+Cara memanggil di grup: awali dengan **halo tani**, atau tag (@) nomor bot, lalu tulis bebas. Pesan tanpa sapaan atau tag diabaikan. Salah ketik ringan tetap dikenali ("hlo tnai bsok"), tetapi "halo tari" atau "halo dani" dianggap menyapa orang. Pertanyaan yang tidak dipahami diulang di jawaban ("belum bisa memahami pertanyaan mengenai …"). Hari yang ditanya dikenali sendiri dari kalimatnya:
 
 ```
 halo tani                      hari ini (juga "halo tani nanti sore hujan ga?")
@@ -152,8 +152,8 @@ Jangan pakai `node --watch` untuk `npm start`: setiap muat ulang berarti sambung
 Setelah mengubah kode di laptop, cukup satu perintah dari folder proyek:
 
 ```bash
-npm run kirim -- "pesan singkat perubahan"   # ada perubahan yang belum di-commit
-npm run kirim                                # semua perubahan sudah di-commit
+npm run kirim                                # pesan perubahan ditanyakan bila ada yang belum di-commit
+npm run kirim -- "pesan singkat perubahan"   # atau langsung ditulis (perlu spasi sesudah --)
 ```
 
 Urutannya: periksa kode (`npm run check`; bila gagal, berhenti dan server tidak diubah) → commit → push ke GitHub → server menjalankan `git pull`, memasang ulang paket bila `package-lock.json` berubah, menyalakan ulang bot, lalu menunggu sampai bot tersambung lagi ke WhatsApp. Bila server sudah memakai versi terbaru, atau yang berubah hanya dokumen, skrip, atau tes (di luar `src/`, `assets/`, `deploy/`, `package*.json`), bot tidak dinyalakan ulang.
@@ -223,6 +223,7 @@ Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ik
 
 - **Keterangan cuaca BMKG.** Hujan dan petir dinilai dari teks `weather_desc`, bukan kode angka. Di API publik BMKG, kode 61 berketerangan "Hujan Ringan" dan 63 "Hujan Sedang", berbeda dari tabel kode yang sering dikutip.
 - **Jam kerja** = slot BMKG (masing-masing mewakili 3 jam) yang bersinggungan dengan 06.00-18.00. Jam slot BMKG sering bergeser (pernah 06/09/12/15, 05/08/11/14/17, dan 07/10/13/16), jadi tidak dipatok ke jam tertentu.
+- **Malam dan dini hari nanti** (18.00 sampai 06.00 tanggal berikutnya) hanya dilaporkan bila hujan, dengan jamnya, karena hujan malam ikut menentukan hasil siram dan pupuk sore; malam yang kering tidak disebut agar pesan tetap pendek. Jam dini hari ditulis "pukul 03.00 dini hari" agar tidak tertukar dengan dini hari tadi.
 - **Peluang hujan** (BMKG sendiri tidak memberinya) = rata-rata 5 pusat cuaca dunia lewat Open-Meteo Ensemble API: ECMWF, ICON (Jerman), GFS (Amerika), UKMO (Inggris), GEM (Kanada), sekitar 160 versi hitungan model. Peluang tiap pusat = bagian anggota ensembelnya yang hujan minimal 1 mm dalam 3 jam slot; tiap pusat berbobot sama. Ambang 1 mm sengaja dipakai karena model global terlalu sering memprakirakan gerimis tipis di daerah tropis. Bila ensembel gagal, cadangannya peluang hujan Open-Meteo biasa, lalu BMKG saja. Lihat rinciannya per pusat: `npm run preview -- --sumber`.
 - **Catatan prakiraan** di `data/prakiraan.json`: setiap ringkasan pagi menyimpan keterangan BMKG dan peluang tiap pusat untuk jam kerja hari itu. Belum dipakai menghitung; disiapkan untuk menilai sumber mana yang paling tepat di Selopamioro begitu ada data hujan yang benar-benar turun (BMKG tidak menyimpan prakiraan lamanya).
 - **Hujan pasti** = BMKG memprakirakan hujan dan peluang hujan pada jam itu ≥ `RAIN_SURE_PERCENT` (bawaan 70%). Aturannya:

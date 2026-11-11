@@ -22,7 +22,7 @@ async function tick() {
     return;
   }
 
-  // Pemeriksaan per jam pada menit acak (tetap per jam), selama jam kerja
+  // Pemeriksaan per jam pada menit acak (tetap per jam), CHECK_START_HOUR sampai CHECK_END_HOUR
   const hourKey = `${now.date} ${now.hour}`;
   const checkDue = now.minute >= stableJitter(hourKey, 30);
   if (now.hour >= config.checkStartHour && now.hour <= config.checkEndHour && checkDue && lastCheckHour !== hourKey) {

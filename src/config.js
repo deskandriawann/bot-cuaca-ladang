@@ -40,7 +40,7 @@ export const config = {
   morningMinute: num('MORNING_MINUTE', 0),
   morningJitterMin: num('MORNING_JITTER_MIN', 15),
   checkStartHour: num('CHECK_START_HOUR', 6),
-  checkEndHour: num('CHECK_END_HOUR', 18),
+  checkEndHour: num('CHECK_END_HOUR', 19),   // terakhir sekitar 19.xx; hujan malam dan dini hari nanti ikut diperiksa
   maxUpdatesPerDay: num('MAX_UPDATES_PER_DAY', 3),
 
   // Angin dianggap kencang mulai kecepatan ini (km/jam)

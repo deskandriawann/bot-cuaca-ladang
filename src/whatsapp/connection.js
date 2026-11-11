@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import makeWASocket, {
-  DisconnectReason, fetchLatestBaileysVersion, Browsers, normalizeMessageContent, isJidGroup, toNumber,
+  DisconnectReason, fetchLatestBaileysVersion, Browsers, normalizeMessageContent, isJidGroup, toNumber, areJidsSameUser,
 } from 'baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
@@ -286,9 +286,16 @@ async function connect() {
       const text = content?.conversation ?? content?.extendedTextMessage?.text ?? content?.imageMessage?.caption;
       if (!text) continue;
       const at = toNumber(msg.messageTimestamp) * 1000 || Date.now();
-      messageHandler({ jid, text, msg, at }).catch((err) => logger.error(err, 'Gagal menangani pesan'));
+      messageHandler({ jid, text, msg, at, mentioned: mentionsBot(content) }).catch((err) => logger.error(err, 'Gagal menangani pesan'));
     }
   });
+}
+
+/** Nomor bot di-tag (@) dalam pesan. Grup baru memakai LID, grup lama nomor telepon: keduanya dicocokkan. */
+function mentionsBot(content) {
+  const mentioned = (content?.extendedTextMessage ?? content?.imageMessage)?.contextInfo?.mentionedJid ?? [];
+  const me = [sock?.user?.id, sock?.user?.lid].filter(Boolean);
+  return mentioned.some((jid) => me.some((own) => areJidsSameUser(jid, own)));
 }
 
 let queue = Promise.resolve();

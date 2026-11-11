@@ -1,7 +1,7 @@
 import './setup.js'; // harus paling awal: pengaturan bawaan dan folder data sementara
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alertKeys, fieldSlots, hazardsOf, withRainChance } from '../src/weather/analysis.js';
+import { alertKeys, fieldSlots, hazardsOf, reportSlots, withRainChance } from '../src/weather/analysis.js';
 import { bmkg, dates, slot } from './helpers.js';
 
 test('BMKG dikelompokkan per tanggal WIB dan urut per jam', () => {
@@ -18,7 +18,7 @@ test('jam slot BMKG yang bergeser (05, 08, 11, 14, 17) tetap dihitung jam kerja'
     slot(14, 'Berawan'), slot(17, 'Cerah'), slot(20, 'Hujan Petir'),
   ];
   assert.deepEqual(fieldSlots(shifted).map((s) => s.hour), [5, 8, 11, 14, 17]);
-  assert.deepEqual(alertKeys(shifted), ['2026-11-14 11 hujan_lebat']);
+  assert.deepEqual(alertKeys(fieldSlots(shifted)), ['2026-11-14 11 hujan_lebat']);
 });
 
 test('bahaya dinilai dari keterangan BMKG, bukan kode angka', () => {
@@ -29,7 +29,16 @@ test('bahaya dinilai dari keterangan BMKG, bukan kode angka', () => {
 
 test('angin kencang dihitung sebagai bahaya', () => {
   assert.deepEqual(hazardsOf(slot(9, 'Cerah', 45)), ['angin']);
-  assert.deepEqual(alertKeys([slot(9, 'Hujan Petir'), slot(12, 'Hujan Sedang'), slot(21, 'Hujan Lebat')]), ['2026-11-14 9 petir']);
+  // Hujan lebat malam dan dini hari nanti ikut diberitahukan; dini hari tadi (pukul 02.00 hari itu) tidak,
+  // dan malam yang kering tidak dilaporkan sama sekali (angin kencang pukul 18.00 tanpa hujan tidak diberitahukan)
+  const next = (hour, desc) => ({ ...slot(hour, desc), date: '2026-11-15' });
+  const days = {
+    '2026-11-14': [slot(2, 'Hujan Lebat'), slot(9, 'Hujan Petir'), slot(12, 'Hujan Sedang'), slot(18, 'Cerah', 45), slot(21, 'Hujan Lebat')],
+    '2026-11-15': [next(0, 'Berawan'), next(3, 'Hujan Petir'), next(9, 'Hujan Lebat')],
+  };
+  assert.deepEqual(reportSlots(days, '2026-11-14').map((s) => `${s.date.slice(8)} ${s.hour}`), ['14 9', '14 12', '14 21', '15 3']);
+  assert.deepEqual(alertKeys(reportSlots(days, '2026-11-14')),
+    ['2026-11-14 9 petir', '2026-11-14 21 hujan_lebat', '2026-11-15 3 petir']);
 });
 
 test('peluang hujan = rata-rata pusat cuaca: bagian anggota ensembel yang hujan minimal 1 mm dalam 3 jam', () => {

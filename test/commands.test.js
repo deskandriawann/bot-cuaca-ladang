@@ -44,10 +44,44 @@ test('pertanyaan bebas: hari dan tanggal dikenali sendiri, termasuk bahasa Jawa'
     'halo tani jam 3 hujan nggak': { kind: 'day', offset: 0 },
     'halo tani kemarin': { kind: 'past' },
     'halo tani makasih ya': { kind: 'thanks' },
-    'halo tani apa kabar': { kind: 'unknown' },
+    'halo tani apa kabar': { kind: 'unknown', question: 'apa kabar' },
     'Hallo tani lusa': { kind: 'day', offset: 2 },
     'hai tani besok': { kind: 'day', offset: 1 },
   };
   for (const [text, expected] of Object.entries(cases)) assert.deepEqual(parseCall(text, 'tani', day), expected, text);
   assert.equal(parseCall('halo tanih besok', 'tani', day), null);
+});
+
+test('salah ketik ringan tetap dikenali; menyapa orang lain dan kata sehari-hari tidak', () => {
+  const cases = {
+    'hlo tani besok': { kind: 'day', offset: 1 },
+    'Haloo tanii lusa': { kind: 'day', offset: 2 },
+    'halo tnai besk': { kind: 'day', offset: 1 },
+    'halo tani bsok hujan ga': { kind: 'day', offset: 1 },
+    'halo tani lsa': { kind: 'day', offset: 2 },
+    'halo tani kamsi': { kind: 'day', offset: 4 },
+    'halo tani sbtu': { kind: 'day', offset: 6 },
+    'halo tani ujan ga': { kind: 'day', offset: 0 },
+    'halo tani makasi': { kind: 'thanks' },
+    'halo tani tgl 1 nopember': { kind: 'day', offset: 7 },
+  };
+  for (const [text, expected] of Object.entries(cases)) assert.deepEqual(parseCall(text, 'tani', day), expected, text);
+  // Menyapa orang bernama mirip, bukan bot
+  for (const text of ['halo tari besok', 'halo dani besok', 'halo tina lusa']) assert.equal(parseCall(text, 'tani', day), null, text);
+  // Kata sehari-hari tidak dibetulkan menjadi nama hari atau cuaca
+  assert.equal(parseCall('halo tani kami mau tanya harga pupuk', 'tani', day).kind, 'unknown');
+  assert.equal(parseCall('halo tani harga cabai merah dan terong', 'tani', day).kind, 'unknown');
+  assert.deepEqual(parseCall('halo tani hujan abu', 'tani', day), { kind: 'day', offset: 0 });
+});
+
+test('nomor bot di-tag: tanpa "halo tani" tetap dijawab; tanpa tag tidak', () => {
+  const tagged = (text) => parseCall(text, 'tani', day, { mentioned: true });
+  assert.deepEqual(tagged('@6281234567890 besok hujan ga?'), { kind: 'day', offset: 1 });
+  assert.deepEqual(tagged('lusa gimana @90207751786598'), { kind: 'day', offset: 2 });
+  assert.deepEqual(tagged('@6281234567890 halo, sabtu?'), { kind: 'day', offset: 6 });
+  assert.deepEqual(tagged('@6281234567890 halo tani besok'), { kind: 'day', offset: 1 });
+  assert.deepEqual(tagged('@6281234567890'), { kind: 'day', offset: 0 });
+  assert.deepEqual(tagged('@6281234567890 pesan pecel lele 1'), { kind: 'unknown', question: 'pesan pecel lele 1' });
+  // Orang lain yang di-tag, bukan bot
+  assert.equal(parseCall('@6281234567890 besok hujan ga?', 'tani', day), null);
 });
