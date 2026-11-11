@@ -12,8 +12,6 @@ import { addLog } from '../store.js';
 // Lama agar pengurus tidak perlu masuk ulang tiap pagi. Disimpan di berkas agar tetap berlaku
 // walau server dinyalakan ulang; yang disimpan hanya sidik SHA-256, bukan tokennya.
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
-// Kata sandi lebih pendek dari ini tetap diterima (minimal 8), tetapi diberi peringatan di log saat menyala
-const STRONG_PASSWORD_LENGTH = 12;
 const sessionsFile = path.join(config.dataDir, 'login-sessions.json');
 const hashSid = (sid) => crypto.createHash('sha256').update(sid).digest('hex');
 
@@ -46,13 +44,10 @@ function saveSessions() {
   fs.renameSync(tmp, sessionsFile);
 }
 
-/** Bot menolak menyala tanpa kata sandi yang layak. */
+/** Bot menolak menyala tanpa kata sandi minimal 8 karakter (tebakan dibatasi oleh kunci masuk). */
 export function checkAdminPassword() {
   if (!config.adminPassword || config.adminPassword.length < 8) {
     throw new Error('ADMIN_PASSWORD di .env wajib diisi, minimal 8 karakter');
-  }
-  if (config.adminPassword.length < STRONG_PASSWORD_LENGTH) {
-    logger.warn(`ADMIN_PASSWORD terlalu pendek: sebaiknya minimal ${STRONG_PASSWORD_LENGTH} karakter`);
   }
 }
 

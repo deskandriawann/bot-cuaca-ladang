@@ -97,7 +97,9 @@ src/
     static/             admin.css dan admin.js (tanpa sisipan di halaman)
 scripts/preview.js      contoh pesan tanpa WhatsApp
 scripts/dev.js          mode develop (npm run dev): muat ulang otomatis, tanpa WhatsApp
-scripts/kirim.js        mengirim perubahan ke server (npm run kirim)
+scripts/kirim.js        mengirim perubahan kode ke server (npm run kirim)
+scripts/kirim-env.js    mengirim .env ke server (npm run kirim-env)
+scripts/server.js       bagian bersama keduanya: SSH dan menyalakan ulang bot
 test/                   pengujian per bagian; data contoh asli di test/fixtures, data uji bersama di test/helpers.js
 deploy/                 layanan systemd (dibatasi: tanpa sudo, hanya menulis di data/)
 .github/workflows/      cek otomatis di GitHub (npm run check)
@@ -158,7 +160,13 @@ npm run kirim -- "pesan singkat perubahan"   # atau langsung ditulis (perlu spas
 
 Urutannya: periksa kode (`npm run check`; bila gagal, berhenti dan server tidak diubah) → commit → push ke GitHub → server menjalankan `git pull`, memasang ulang paket bila `package-lock.json` berubah, menyalakan ulang bot, lalu menunggu sampai bot tersambung lagi ke WhatsApp. Bila server sudah memakai versi terbaru, atau yang berubah hanya dokumen, skrip, atau tes (di luar `src/`, `assets/`, `deploy/`, `package*.json`), bot tidak dinyalakan ulang.
 
-Butuh alias SSH `infocuacatani` di `~/.ssh/config` laptop (server lain: isi `DEPLOY_HOST` dan `DEPLOY_DIR`). Setiap kirim berarti bot menyambung ulang ke WhatsApp, jadi kumpulkan perubahan lalu kirim sekaligus, bukan berkali-kali sejam. `.env` di server tidak ikut berubah; pengaturan di sana diubah dengan `ssh infocuacatani`, lalu `nano ~/bot-cuaca/.env`.
+Butuh alias SSH `infocuacatani` di `~/.ssh/config` laptop (server lain: isi `DEPLOY_HOST` dan `DEPLOY_DIR`). Setiap kirim berarti bot menyambung ulang ke WhatsApp, jadi kumpulkan perubahan lalu kirim sekaligus, bukan berkali-kali sejam. `.env` tidak ikut `npm run kirim` (tidak pernah lewat GitHub). Pengaturan dikirim terpisah:
+
+```bash
+npm run kirim-env    # kirim .env laptop ke server, lalu nyalakan ulang bot
+```
+
+Sebelum dikirim, perbedaannya ditampilkan (kata sandi hanya ditulis "diganti", tidak pernah ditampilkan) dan diminta persetujuan. `ADMIN_HOST` harus `127.0.0.1` dan `DATA_DIR` harus `data`. `.env` lama di server disimpan sebagai `.env.sebelumnya`, dan dikembalikan sendiri bila bot mati dengan pengaturan baru.
 
 ## Pemasangan di Oracle Cloud Always Free
 
@@ -212,10 +220,10 @@ Data penting ada di folder `data/` (sesi WhatsApp dan pengaturan grup). Jangan d
 
 ### Kata sandi halaman pengelola
 
-Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter, dan memberi peringatan di log saat menyala bila kurang dari 12.
+Kata sandi hanya ada di `ADMIN_PASSWORD` dalam `.env` di server, tidak pernah ikut ke GitHub. Bot menolak menyala bila kosong atau kurang dari 8 karakter.
 
 - Pakai huruf, angka, dan tanda `-`, misalnya beberapa kata acak: `jagung-embun-pacul-senja`. Tanda `#` memotong kata sandi tanpa peringatan (`abc#123` terbaca `abc`); bila perlu `#`, apit dengan tanda kutip.
-- Mengganti: ubah `ADMIN_PASSWORD` dengan `nano ~/bot-cuaca/.env`, lalu `sudo systemctl restart bot-cuaca`. Semua browser yang sedang masuk otomatis keluar, jadi cukup ganti kata sandi saat serah terima pengurus.
+- Mengganti: ubah `ADMIN_PASSWORD` di `.env` laptop, lalu `npm run kirim-env` (atau di server: `nano ~/bot-cuaca/.env`, lalu `sudo systemctl restart bot-cuaca`). Semua browser yang sedang masuk otomatis keluar, jadi cukup ganti kata sandi saat serah terima pengurus.
 - Salah 5 kali dari satu alamat: alamat itu dikunci 15 menit. Salah 30 kali dalam 15 menit dari berbagai alamat (tebakan beramai-ramai): semua percobaan masuk dikunci 15 menit dan tercatat di **Kegiatan bot terbaru** sebagai *Keamanan*.
 - Pesan di alamat halaman (`?pesan=`) ditandatangani bot, jadi tautan dari luar tidak bisa memunculkan teks palsu di halaman pengelola. Formulir dari situs lain dan pembingkaian halaman (iframe) ditolak.
 

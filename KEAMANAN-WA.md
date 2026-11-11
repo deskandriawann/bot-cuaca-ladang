@@ -86,7 +86,7 @@ Sumber harga Cloud API: [Pricing on the WhatsApp Business Platform](https://deve
 
 | Kemungkinan | Penanganan | Oleh |
 | --- | --- | --- |
-| Kata sandi ditebak | Satu alamat dikunci 15 menit setelah 5 kali salah; semua percobaan dikunci 15 menit setelah 30 kali salah dari berbagai alamat (tercatat sebagai *keamanan*); peringatan di log server bila kata sandi kurang dari 12 karakter | Kode |
+| Kata sandi ditebak | Satu alamat dikunci 15 menit setelah 5 kali salah; semua percobaan dikunci 15 menit setelah 30 kali salah dari berbagai alamat (tercatat sebagai *keamanan*) | Kode |
 | Kata sandi atau cookie disadap (HTTP tanpa enkripsi) | Halaman hanya mendengar `127.0.0.1`; dari luar lewat HTTPS (Caddy + DuckDNS, lihat README). Lewat HTTPS, cookie bertanda `Secure` | Pengembang |
 | Pengurus lama masih bisa masuk setelah serah terima | Ganti `ADMIN_PASSWORD`: semua sesi masuk otomatis gugur | Pengembang |
 | Tautan palsu yang memunculkan pesan di halaman pengelola, formulir dari situs lain, atau halaman dibingkai situs lain | Pesan di alamat ditandatangani bot; cookie `SameSite=Strict` dan pemeriksaan `Origin`; iframe dilarang | Kode |
